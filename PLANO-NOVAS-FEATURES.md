@@ -394,7 +394,8 @@ Os contratos, esqueletos, specs de teste e documentação de apoio **já existem
 **Contratos + stubs (dashboard, TS):**
 - [subjectProfile.ts](hub-ue/apps/dashboard/src/subjectProfile.ts) — tipos do sujeito + persistência + validação.
 - [captureProfile.ts](hub-ue/apps/dashboard/src/captureProfile.ts) — `CaptureProfile` + builders + payload de lifecycle.
-- [exportFormats.ts](hub-ue/apps/dashboard/src/exportFormats.ts) — `ExportJob`, regra client/server, **encoder `.npy` já funcional**.
+- [exportFormats.ts](hub-ue/apps/dashboard/src/exportFormats.ts) — `ExportJob`, regra client/server, **encoder `.npy` já funcional**, `buildExportEnvelopeV2`.
+- **Fundação implementada:** o export do Report ([experienceReport.ts](hub-ue/apps/dashboard/src/experienceReport.ts)) embute `subject`/`capture` opcionais (retrocompatível, `schemaVersion` 1 mantido).
 - Specs Vitest: `subjectProfile.test.ts`, `captureProfile.test.ts`, `exportFormats.test.ts` (verdes; `it.todo` no que falta).
 
 **Contrato (hub, Python):**

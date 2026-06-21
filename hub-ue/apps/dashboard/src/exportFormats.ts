@@ -52,6 +52,26 @@ export function buildExportJob(
 }
 
 /**
+ * Monta o cabeçalho v2 que embrulha qualquer export com o contexto fisiológico
+ * (sujeito + captura + run). É a fundação da Fase 0: garante que o `.npy`/`.mat`
+ * ou o JSON do Report cheguem ao analista com o contexto da coleta.
+ */
+export function buildExportEnvelopeV2(args: {
+  exportedAt?: string;
+  subject?: SubjectSnapshot;
+  capture?: CaptureProfile;
+  run?: ExportEnvelopeV2["run"];
+}): ExportEnvelopeV2 {
+  return {
+    schemaVersion: EXPORT_SCHEMA_VERSION,
+    exportedAt: args.exportedAt ?? new Date().toISOString(),
+    subject: args.subject,
+    capture: args.capture,
+    run: args.run,
+  };
+}
+
+/**
  * Serializa uma série numérica no formato NumPy .npy v1.0 (little-endian float64).
  * Implementado de fato — é determinístico e o código futuro pode usar direto para rr/hr.
  */

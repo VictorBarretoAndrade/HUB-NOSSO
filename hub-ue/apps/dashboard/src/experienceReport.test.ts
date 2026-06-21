@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { createDefaultCaptureProfile } from "./captureProfile";
 import type { CommandHistoryItem } from "./commandHistory";
+import { createEmptySubjectProfile } from "./subjectProfile";
 import {
   deriveAnalyticSessionTimeline,
   endExperienceRun,
@@ -255,5 +257,28 @@ describe("experience report", () => {
       tone: "error",
     });
     expect(deriveExperienceReportHealth(gapReport).flags).toEqual(expect.arrayContaining(["sensor_gaps", "command_issues"]));
+  });
+
+  it("embeds optional subject and capture context without bumping the report schema (Fase 0)", () => {
+    const run = endExperienceRun(startExperienceRun("2026-04-26T12:00:00.000Z"), "2026-04-26T12:00:10.000Z");
+    const events = [event("2026-04-26T12:00:02.000Z", "experience.marker", { markerId: "m1", label: "checkpoint" })];
+    const timeline = deriveAnalyticSessionTimeline(events, run, 200);
+    const report = deriveExperienceReport(run, timeline, events, [command("accepted")]);
+
+    const withContext = JSON.parse(
+      serializeExperienceReportJson(report, "2026-04-26T12:00:12.000Z", {
+        timeline,
+        commandHistory: [command("accepted")],
+        subject: { ...createEmptySubjectProfile("2026-04-26T12:00:00.000Z"), subjectId: "S-1" },
+        capture: createDefaultCaptureProfile(),
+      }),
+    );
+    expect(withContext.schemaVersion).toBe(1);
+    expect(withContext.subject.subjectId).toBe("S-1");
+    expect(withContext.capture.mode).toBe("stream");
+
+    const withoutContext = JSON.parse(serializeExperienceReportJson(report, "2026-04-26T12:00:12.000Z", { timeline }));
+    expect(withoutContext.subject).toBeUndefined();
+    expect(withoutContext.capture).toBeUndefined();
   });
 });

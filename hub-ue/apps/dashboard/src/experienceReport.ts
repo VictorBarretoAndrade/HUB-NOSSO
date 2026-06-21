@@ -1,6 +1,8 @@
+import type { CaptureProfile } from "./captureProfile";
 import type { CommandHistoryItem } from "./commandHistory";
 import { deriveExperienceAnalytics } from "./experienceAnalytics";
 import type { ExperienceAnalytics } from "./experienceAnalytics";
+import type { SubjectSnapshot } from "./subjectProfile";
 import {
   experienceRunElapsedMs,
   experienceRunPausedMs,
@@ -124,6 +126,10 @@ export interface MarkerSnapshotExportRow {
 export interface ReportExportEnvelopeV1 {
   schemaVersion: 1;
   exportedAt: string;
+  // Fase 0: contexto fisiológico opcional (preenchido a partir da Fase 1).
+  // Mantém schemaVersion 1 — campos opcionais são retrocompatíveis.
+  subject?: SubjectSnapshot;
+  capture?: CaptureProfile;
   summary: ExperienceReport["summary"];
   report: ExperienceReport;
   analytics: ExperienceAnalytics;
@@ -135,6 +141,8 @@ export interface ReportExportEnvelopeV1 {
 export interface ReportExportOptions {
   timeline?: AnalyticSessionTimelineItem[];
   commandHistory?: CommandHistoryItem[];
+  subject?: SubjectSnapshot;
+  capture?: CaptureProfile;
 }
 
 interface HrvReportSample {
@@ -189,6 +197,8 @@ export function buildReportExportEnvelope(
   return {
     schemaVersion: 1,
     exportedAt,
+    subject: options.subject,
+    capture: options.capture,
     summary: report.summary,
     report,
     analytics: report.analytics,
