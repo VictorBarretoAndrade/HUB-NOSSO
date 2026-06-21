@@ -1,0 +1,44 @@
+bluetooth:
+  device_address: "D6531279-6A6E-DDA8-C1D5-13D102E3EA9A"
+  scan_timeout: 10
+
+# Operating mode of the driver
+# modes:
+#   "stream"   -> continuously sends data through the gateway
+#   "record"   -> records locally to file
+#   "hybrid"   -> streams and allows recording to be triggered remotely
+mode: "stream"
+
+ecg:
+  sample_rate_hz: 130
+  resolution_bits: 14
+
+recording:
+  enabled: false
+  output_file: "ecg_raw.csv"
+
+  # Optional automatic recording duration
+  duration_seconds: 60
+
+  # Allows the WebSocket server or HTTP endpoint to trigger recording
+  trigger:
+    enabled: true
+    start_endpoint: "/record/start"
+    stop_endpoint: "/record/stop"
+
+gateway:
+  enabled: true
+  host: "0.0.0.0"
+  port: 8765
+  websocket_path: "/stream"
+
+stream:
+  packet_size: 20
+  send_ecg: true
+  send_rr: true
+  send_hr: true
+
+# Enable an HTML page for data visualization (prototype!)
+visualization:
+  enabled: true
+  route: "/"

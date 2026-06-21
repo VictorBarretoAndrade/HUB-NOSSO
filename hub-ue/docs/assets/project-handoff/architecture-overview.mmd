@@ -1,0 +1,40 @@
+flowchart LR
+    subgraph XR["Unreal / Meta Quest"]
+        UEP["QuestSupervisor Plugin"]
+        BP["Blueprint / Bridge Actor"]
+        EXP["Experiencia XR"]
+        EXP --> BP
+        BP --> UEP
+    end
+
+    subgraph HUB["Hub Python local"]
+        WS["FastAPI WebSocket /ws"]
+        ENV["MessageEnvelope<br/>Pydantic"]
+        BROKER["TopicBroker<br/>publish / subscribe"]
+        ACK["ACK Tracker"]
+        LOG["Session Logger<br/>JSONL"]
+        STATUS["HTTP /health + /status"]
+        WS --> ENV
+        ENV --> BROKER
+        BROKER --> ACK
+        BROKER --> LOG
+        STATUS --> BROKER
+    end
+
+    subgraph SENSORS["Sensores e adapters"]
+        HRV["Cinta / sensor HRV"]
+        EEG["EEG futuro"]
+        OTHER["Outros sensores"]
+    end
+
+    subgraph UI["Operacao e analytics"]
+        DASH["Dashboard local<br/>React/Vite"]
+        EXPORT["Reports e exports<br/>JSON / CSV"]
+    end
+
+    UEP <-->|"WebSocket JSON"| WS
+    HRV -->|"hrv.raw"| WS
+    EEG -->|"eeg.raw"| WS
+    OTHER -->|"topicos futuros"| WS
+    DASH <-->|"HTTP + WebSocket"| WS
+    DASH --> EXPORT

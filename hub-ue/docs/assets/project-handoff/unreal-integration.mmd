@@ -1,0 +1,15 @@
+flowchart TB
+    SETTINGS["Project Settings<br/>endpoint, token, auto connect"] --> PLUGIN["QuestSupervisor Plugin"]
+    PLUGIN --> SUBSYSTEM["QuestSupervisorSubsystem"]
+    SUBSYSTEM -->|"hello + subscribe unreal.commands"| HUB["Biofeedback Hub"]
+
+    BP["Blueprint / Bridge Actor"] -->|"Start / End Experience"| SUBSYSTEM
+    BP -->|"Add Marker"| SUBSYSTEM
+    SUBSYSTEM -->|"experience.lifecycle"| HUB
+    SUBSYSTEM -->|"experience.marker"| HUB
+    SUBSYSTEM -->|"unreal.state"| HUB
+
+    DASH["Dashboard"] -->|"unreal.commands<br/>requiresAck=true"| HUB
+    HUB -->|"command"| SUBSYSTEM
+    SUBSYSTEM -->|"ack accepted/rejected"| HUB
+    HUB --> DASH

@@ -1,0 +1,7 @@
+flowchart LR
+    STRAP["Cinta HRV<br/>BPM / IBI"] --> ADAPTER["Adapter BLE<br/>ou app bridge"]
+    ADAPTER -->|"hello role=sensor"| HUB["Hub /ws"]
+    ADAPTER -->|"publish hrv.raw"| HUB
+    HUB --> DASH["Dashboard<br/>sensor conectado"]
+    HUB --> LOG["Logs JSONL"]
+    DASH --> EXPORT["Export CSV/JSON"]

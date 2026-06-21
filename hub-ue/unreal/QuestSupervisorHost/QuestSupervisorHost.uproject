@@ -1,0 +1,27 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.7",
+  "Category": "",
+  "Description": "Minimal host project for validating the QuestSupervisor plugin.",
+  "DisableEnginePluginsByDefault": false,
+  "Modules": [
+    {
+      "Name": "QuestSupervisorHost",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ],
+  "AdditionalPluginDirectories": [
+    "../Plugins"
+  ],
+  "Plugins": [
+    {
+      "Name": "QuestSupervisor",
+      "Enabled": true
+    },
+    {
+      "Name": "OpenXR",
+      "Enabled": true
+    }
+  ]
+}

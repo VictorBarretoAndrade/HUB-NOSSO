@@ -1,0 +1,19 @@
+{
+  "FileVersion": 3,
+  "Version": 2,
+  "VersionName": "0.1.1-dev",
+  "FriendlyName": "QuestSupervisor",
+  "Description": "Quest-side supervisor plugin for Unreal Engine on Meta Quest 3.",
+  "Category": "XR",
+  "CreatedBy": "Codex",
+  "EnabledByDefault": true,
+  "CanContainContent": false,
+  "Installed": false,
+  "Modules": [
+    {
+      "Name": "QuestSupervisor",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ]
+}

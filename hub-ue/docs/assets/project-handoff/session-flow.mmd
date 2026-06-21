@@ -1,0 +1,24 @@
+sequenceDiagram
+    participant D as Dashboard
+    participant H as Hub
+    participant U as Unreal
+    participant S as Sensor HRV
+    participant R as Report
+
+    D->>H: subscribe lifecycle, markers, hrv.raw, unreal.state
+    U->>H: publish experience.lifecycle started
+    H-->>D: sessao iniciada
+
+    loop Durante a experiencia
+        S->>H: publish hrv.raw
+        H-->>D: amostra biometrica
+        U->>H: publish experience.marker
+        H-->>D: marker na timeline
+        U->>H: publish unreal.state
+        H-->>D: estado observado
+    end
+
+    U->>H: publish experience.lifecycle ended
+    H-->>D: sessao encerrada
+    D->>R: gerar report local
+    R-->>D: JSON / CSV / timeline

@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "biofeedback-hub"
+version = "0.1.1.dev0"
+description = "Local-first topic-centric biofeedback hub for Unreal, Quest, and external sensors."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115",
+  "pydantic>=2.8",
+  "uvicorn[standard]>=0.30",
+  "websockets>=13.0"
+]
+
+[project.scripts]
+biofeedback-hub = "biofeedback_hub.main:run"
+biofeedback-sim = "biofeedback_hub.tools.sim_client:main"
+biofeedback-command = "biofeedback_hub.tools.command_client:main"
+biofeedback-status = "biofeedback_hub.tools.status_client:main"
+biofeedback-doctor = "biofeedback_hub.tools.doctor:main"
+biofeedback-polarh10 = "biofeedback_hub.tools.polarh10_client:run"
+biofeedback-experience = "biofeedback_hub.tools.experience_client:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/biofeedback_hub"]

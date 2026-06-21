@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  hub:
+    name: Python hub checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install hub
+        run: python -m pip install -e apps/hub
+
+      - name: Run tests
+        run: python -m unittest discover -s apps/hub/tests
+
+      - name: Compile Python modules
+        run: python -m compileall -q apps/hub/src apps/hub/tests
+
+  unreal-plugin-package:
+    name: Unreal plugin package smoke test
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Smoke test package script
+        shell: pwsh
+        run: .\tools\unreal\test_package_quest_supervisor_plugin.ps1

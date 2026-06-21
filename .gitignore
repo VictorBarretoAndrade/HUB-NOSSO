@@ -1,0 +1,50 @@
+# --- Dependencies ---
+node_modules/
+**/node_modules/
+
+# --- Python ---
+.venv/
+venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# --- Build outputs ---
+dist/
+**/dist/
+build/
+*.tsbuildinfo
+
+# --- Hub runtime data / session logs (não commitar dados de sessão) ---
+data/sessions/
+data/recordings/
+**/data/runtime/
+**/data/sessions/
+**/data/recordings/
+
+# --- Unreal Engine (gerados) ---
+**/Binaries/
+**/Intermediate/
+**/Saved/
+**/DerivedDataCache/
+*.VC.db
+*.opensdf
+*.sdf
+
+# --- Recorder / debug outputs ---
+ecg_debug_log.csv
+ecg_raw.csv
+**/ecg_debug_log.csv
+**/ecg_raw.csv
+
+# --- Backups dos .git originais (mantidos em disco, fora do repo) ---
+.git.backup/
+**/.git.backup/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/

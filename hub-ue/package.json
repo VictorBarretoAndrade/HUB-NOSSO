@@ -1,0 +1,15 @@
+{
+  "name": "quest-supervisor-ue",
+  "private": true,
+  "packageManager": "npm@11.6.2",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:dashboard": "npm run dev -w @quest-supervisor/dashboard",
+    "dev:demo": "powershell -ExecutionPolicy Bypass -File tools/dev/start_hub_demo.ps1",
+    "dev:demo:stop": "powershell -ExecutionPolicy Bypass -File tools/dev/stop_hub_demo.ps1",
+    "build:dashboard": "npm run build -w @quest-supervisor/dashboard",
+    "typecheck:dashboard": "npm run typecheck -w @quest-supervisor/dashboard"
+  }
+}

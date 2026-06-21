@@ -1,0 +1,11 @@
+flowchart LR
+    CURRENT["Dashboard local<br/>debug, clients, topics,<br/>session control"] --> REPORTS["Reports de sessao<br/>timeline, markers,<br/>biometria, exports"]
+    REPORTS --> PLATFORM["Plataforma Analytics XR<br/>projetos, participantes,<br/>experimentos, sensores"]
+
+    PLATFORM --> CONNECTORS["Conectores<br/>Unreal, Unity, WebXR"]
+    PLATFORM --> MODULES["Modulos<br/>HRV, EEG, eye tracking,<br/>surveys, eventos"]
+    PLATFORM --> RESEARCH["Pesquisa cientifica<br/>exports, reprodutibilidade,<br/>documentacao"]
+
+    HUB["Hub local<br/>coletor em tempo real"] --> CURRENT
+    HUB --> REPORTS
+    HUB --> PLATFORM

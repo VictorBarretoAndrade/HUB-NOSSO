@@ -1,0 +1,93 @@
+name: Release Unreal Plugin
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Tag to create or update as a GitHub Release"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: Package QuestSupervisor
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Smoke test package script
+        shell: pwsh
+        run: .\tools\unreal\test_package_quest_supervisor_plugin.ps1
+
+      - name: Build plugin package
+        shell: pwsh
+        run: .\tools\unreal\package_quest_supervisor_plugin.ps1 -OutputDir dist
+
+      - name: Resolve release metadata
+        id: package
+        shell: pwsh
+        run: |
+          $tagName = "${{ github.ref_name }}"
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $tagName = "${{ inputs.tag_name }}"
+          }
+          if ([string]::IsNullOrWhiteSpace($tagName)) {
+            throw "Release tag name is required."
+          }
+
+          $zip = Get-ChildItem -LiteralPath "dist" -Filter "QuestSupervisor-*.zip" -File | Select-Object -First 1
+          if (-not $zip) {
+            throw "No QuestSupervisor package zip was generated."
+          }
+
+          "tag_name=$tagName" >> $env:GITHUB_OUTPUT
+          "zip_path=$($zip.FullName)" >> $env:GITHUB_OUTPUT
+          "zip_name=$($zip.Name)" >> $env:GITHUB_OUTPUT
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.zip_name }}
+          path: ${{ steps.package.outputs.zip_path }}
+
+      - name: Create or update GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.package.outputs.tag_name }}
+          ZIP_PATH: ${{ steps.package.outputs.zip_path }}
+          ZIP_NAME: ${{ steps.package.outputs.zip_name }}
+        run: |
+          $notes = @"
+          Development release generated automatically by GitHub Actions.
+
+          Asset:
+          - $env:ZIP_NAME
+
+          Install:
+          1. Download and extract the ZIP.
+          2. Copy the extracted QuestSupervisor folder to <ProjetoUnreal>/Plugins/QuestSupervisor.
+          3. Open the Unreal project and rebuild if prompted.
+          "@
+
+          $releaseExists = $false
+          try {
+            gh release view $env:RELEASE_TAG *> $null
+            $releaseExists = ($LASTEXITCODE -eq 0)
+          } catch {
+            $releaseExists = $false
+          }
+
+          if ($releaseExists) {
+            gh release upload $env:RELEASE_TAG $env:ZIP_PATH --clobber
+          } else {
+            gh release create $env:RELEASE_TAG $env:ZIP_PATH --title $env:RELEASE_TAG --notes $notes --prerelease
+          }

@@ -1,0 +1,13 @@
+﻿Biofeedback Hub: biofeedback-hub
+Session: session-20260428T115135Z
+Clients: 4
+Pending ACKs: 0
+
+Clients
+- dashboard-ui [dashboard] caps=monitoring subs=ai.input, ai.output, biofeedback.events, eeg.processed, eeg.raw, experience.lifecycle, experience.marker, hrv.processed, hrv.raw, logger.events, system.events, unreal.state outbox=0
+- hrv-sim [sensor] caps=hrv subs=- outbox=0
+- logger-sim [logger] caps=logger subs=ai.input, ai.output, biofeedback.events, eeg.processed, eeg.raw, experience.lifecycle, experience.marker, hrv.processed, hrv.raw, logger.events, system.events, unreal.state outbox=0
+- unreal-quest-sim [unreal] caps=unreal subs=unreal.commands outbox=0
+
+Pending ACKs
+- none
