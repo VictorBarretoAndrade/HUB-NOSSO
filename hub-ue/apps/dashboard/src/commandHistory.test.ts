@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  canAnnotateMarker,
   canDispatchAddMarker,
   canDispatchPauseSession,
   canDispatchResumeSession,
@@ -145,6 +146,12 @@ describe("command history", () => {
     expect(canDispatchAddMarker(clients, false, "  ")).toBe(false);
     expect(canDispatchAddMarker(clients, true, "stimulus-start")).toBe(false);
     expect(canDispatchAddMarker([], false, "stimulus-start")).toBe(false);
+  });
+
+  it("allows annotating a marker locally without a command recipient", () => {
+    expect(canAnnotateMarker(false, "stimulus-start")).toBe(true);
+    expect(canAnnotateMarker(false, "  ")).toBe(false);
+    expect(canAnnotateMarker(true, "stimulus-start")).toBe(false);
   });
 
   it("describes observed state confirmation for pause and resume commands", () => {

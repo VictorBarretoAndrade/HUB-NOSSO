@@ -24,6 +24,7 @@ driver e publica no hub como tópico `hrv.raw`.
 
 ## Documentação
 
+- **[PASSO-A-PASSO.md](PASSO-A-PASSO.md)** — tutorial de **instalação e uso** ponta a ponta (pré-requisitos → instalar → subir a stack → usar as 4 features → exportar), com troubleshooting.
 - **[COMO-USAR.md](COMO-USAR.md)** — runbook passo a passo: rodar e **usar as 4 features** (Subject → Recording → Live → Export), sem hardware.
 - **[GUIA-PROJETO.md](GUIA-PROJETO.md)** — guia visual de como o sistema funciona, como os projetos se conectam e como rodar (com e sem o Polar).
 - **[PLANO-NOVAS-FEATURES.md](PLANO-NOVAS-FEATURES.md)** — análise + plano conceitual das novas features (cadastro do sujeito, modos de gravação, visualização ao vivo, export `.npy`/`.mat`).
@@ -62,4 +63,6 @@ HUB-NOSSO/
 
 > As novas features (cadastro do sujeito, modos de gravação, export `.npy`/`.mat` e
 > visualização ao vivo) estão **implementadas** (Fases 0–4) e validadas por CI.
+> A **Fase 5** adicionou um redesign claro do dashboard (IBM Plex, cards separados),
+> uma aba **Guia** com tutorial embutido e markers que funcionam sem Unreal.
 > Detalhes em [MUDANCAS.md](MUDANCAS.md).

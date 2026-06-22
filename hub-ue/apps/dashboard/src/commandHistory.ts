@@ -49,6 +49,14 @@ export function canDispatchAddMarker(clients: HubClient[], isDispatching: boolea
   return commandRecipients(clients).length > 0 && !isDispatching && label.trim().length > 0;
 }
 
+// Markers são anotações da timeline da experiência: ao contrário de pause/resume,
+// não precisam de um cliente Unreal inscrito em unreal.commands. Basta um rótulo e
+// não estar despachando outro comando. O dashboard publica direto em
+// experience.marker, então funciona mesmo no demo sem hardware.
+export function canAnnotateMarker(isDispatching: boolean, label: string): boolean {
+  return !isDispatching && label.trim().length > 0;
+}
+
 export function createPendingCommandHistoryItem(command: MessageEnvelope, sentAt: string): CommandHistoryItem {
   const commandArguments = command.payload?.arguments;
   return {

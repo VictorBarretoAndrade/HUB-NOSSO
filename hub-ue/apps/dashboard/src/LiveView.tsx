@@ -19,7 +19,7 @@ const ECG_MAX_SAMPLES = 2000;
 const ECG_W = 1000;
 const ECG_H = 240;
 const TREND_MAX_POINTS = 120;
-const STROKE = "#6bc5ff";
+const STROKE = "#c0362b";
 
 function drawEcg(ctx: CanvasRenderingContext2D, values: number[], width: number, height: number): void {
   ctx.clearRect(0, 0, width, height);

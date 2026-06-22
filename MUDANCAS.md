@@ -131,6 +131,30 @@ Monitor em tempo real no dashboard, sem sobrecarregar o React.
 - [LiveView.tsx](hub-ue/apps/dashboard/src/LiveView.tsx) — **ECG em `<canvas>`** (desenhado a partir do array derivado, fora do estado React) + **HR/RR em SVG** + BPM/RR atuais.
 - [App.tsx](hub-ue/apps/dashboard/src/App.tsx) — aba **Live**, alimentada pelos eventos `hrv.raw` vivos (que ainda têm o array `ecg`).
 
+### Fase 5 — Redesign do dashboard + guia embutido + markers locais
+
+Camada de UX por cima das 4 exigências: visual mais legível, guia dentro do app e
+correção do "Add marker" no demo. **Nenhuma mudança de lógica das features** — só
+apresentação e o caminho de publicação do marker.
+
+**Redesign do dashboard (tema claro):**
+- [styles.css](hub-ue/apps/dashboard/src/styles.css) — reescrito como **tema claro** inspirado no front de referência `heart-vr-nexus` (NEXUS — Hub de Sensores ECG & VR). Tokens reais extraídos do CSS do site: fundo branco-acinzentado, **cards brancos** com borda suave/sombra e cantos arredondados, azul-marinho como primário, vermelho para ECG/erro, verde p/ OK. Todas as classes preexistentes foram preservadas (zero mudança de JSX para o restyle).
+- **Fonte mais legível:** `Inter`/`Space Grotesk` → **IBM Plex Sans** (texto) + **IBM Plex Mono** (números, com `tabular-nums`). Reduzido o uso de CAIXA ALTA (só micro-labels), espaçamento maior e hierarquia mais clara ("tudo claro e separado").
+- [LiveView.tsx](hub-ue/apps/dashboard/src/LiveView.tsx) — cor do traço do ECG/tendências de azul-claro (`#6bc5ff`, invisível no fundo claro) para o **vermelho-ECG** do tema (`#c0362b`).
+
+**Guia embutido (nova aba "Guia"):**
+- [GuideView.tsx](hub-ue/apps/dashboard/src/GuideView.tsx) *(novo)* — página dentro do app que explica as funcionalidades: hero, **fluxo de 5 passos** (Subject → Recording → Session → Live → Export) com botões que **navegam direto** para cada aba, lista "o que cada aba faz" (clicável), legenda dos estados do sinal (Streaming/Stale/Poor/None) e dicas (rodar sem hardware, export `.npy`/`.mat`).
+- [App.tsx](hub-ue/apps/dashboard/src/App.tsx) — `View` exportado e ampliado com `"guide"`; novo item de nav **Guia** (primeiro, ícone `BookOpen`), título "Guia de Uso", render da view e classes de estilo do guia no `styles.css`.
+
+**Markers funcionam sem Unreal (fix):**
+- Antes o **Add marker** exigia um cliente Unreal inscrito em `unreal.commands` (`canDispatchAddMarker`), então no demo sem hardware o botão ficava **sempre desabilitado**.
+- Agora o marker é uma **anotação publicada direto no tópico `experience.marker`** (igual ao lifecycle): o próprio monitor do dashboard recebe de volta e o marker entra na **Timeline** e no **Report** — sem precisar do Unreal.
+- [commandHistory.ts](hub-ue/apps/dashboard/src/commandHistory.ts) — nova `canAnnotateMarker(isDispatching, label)` (só exige rótulo + não estar despachando). `canDispatchAddMarker` permanece intacta (ainda gateia o comando Unreal opcional com ACK quando há cliente).
+- [App.tsx](hub-ue/apps/dashboard/src/App.tsx) — `publishMarkerEvent` + `addMarker` (publica `experience.marker` e, se houver cliente de comando, também despacha o `add-marker` com ACK).
+- `commandHistory.test.ts` — teste de `canAnnotateMarker` (108 testes verdes).
+
+> **Validação:** `typecheck:dashboard` verde, **108 testes** passando, e a entrega do `experience.marker` pelo hub confirmada ao vivo (monitor recebe o evento publicado como `dashboard-marker`).
+
 ---
 
 ## 5. Fluxo funcional hoje (ponta a ponta)
@@ -164,7 +188,9 @@ sequenceDiagram
 | [README.md](README.md) | Página inicial do repo |
 | [GUIA-PROJETO.md](GUIA-PROJETO.md) | Como o sistema funciona e roda |
 | [PLANO-NOVAS-FEATURES.md](PLANO-NOVAS-FEATURES.md) | Análise + plano conceitual das features |
+| [PASSO-A-PASSO.md](PASSO-A-PASSO.md) | Tutorial de instalação e uso das 4 features (Fase 5) |
 | [MUDANCAS.md](MUDANCAS.md) | Este documento |
+| [GuideView.tsx](hub-ue/apps/dashboard/src/GuideView.tsx) | Guia de uso embutido no dashboard (aba **Guia**, Fase 5) |
 | [.github/workflows/ci.yml](.github/workflows/ci.yml) | CI (dashboard + hub + driver) |
 | [subjectProfile.ts](hub-ue/apps/dashboard/src/subjectProfile.ts) + `.test.ts` | Contrato/persistência do sujeito |
 | [captureProfile.ts](hub-ue/apps/dashboard/src/captureProfile.ts) + `.test.ts` | Contrato/persistência da captura |
@@ -184,9 +210,11 @@ sequenceDiagram
 
 | Arquivo | Mudança |
 |---|---|
-| [App.tsx](hub-ue/apps/dashboard/src/App.tsx) | Abas Subject, Recording e Live; estado, persistência, lifecycle e export |
+| [App.tsx](hub-ue/apps/dashboard/src/App.tsx) | Abas Subject, Recording e Live; aba **Guia** + `View` exportado (Fase 5); markers locais (`publishMarkerEvent`/`addMarker`); estado, persistência, lifecycle e export |
 | [experienceReport.ts](hub-ue/apps/dashboard/src/experienceReport.ts) | `subject`/`capture` opcionais no export |
-| [styles.css](hub-ue/apps/dashboard/src/styles.css) | Estilos das telas novas + checkbox |
+| [styles.css](hub-ue/apps/dashboard/src/styles.css) | **Fase 5:** reescrito como tema claro (IBM Plex, cards separados) + estilos do guia. Antes: estilos das telas novas + checkbox |
+| [LiveView.tsx](hub-ue/apps/dashboard/src/LiveView.tsx) | **Fase 5:** cor do traço do ECG para o vermelho do tema claro |
+| [commandHistory.ts](hub-ue/apps/dashboard/src/commandHistory.ts) | **Fase 5:** `canAnnotateMarker` (markers sem cliente Unreal) |
 | [websocket_gateway.py](polarh10_driver/core/websocket_gateway.py) | Endpoint `/control` + gravação no loop |
 | [websocket_gateway_dashboard.py](polarh10_driver/core/websocket_gateway_dashboard.py) | Idem (gateway com visualização) |
 | [main.py](polarh10_driver/main.py) | Cria o Recorder e loga o mode |

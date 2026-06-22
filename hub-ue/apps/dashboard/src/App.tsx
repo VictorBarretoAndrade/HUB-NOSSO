@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   Bell,
+  BookOpen,
   Command,
   Database,
   Download,
@@ -26,7 +27,7 @@ import {
 } from "./api";
 import type { UnrealCommandAction } from "./api";
 import {
-  canDispatchAddMarker,
+  canAnnotateMarker,
   canDispatchPauseSession,
   canDispatchResumeSession,
   commandObservedStateDetail,
@@ -125,16 +126,18 @@ import { RecordingModeView } from "./RecordingModeView";
 import { createDefaultCaptureProfile, loadCaptureProfile, saveCaptureProfile } from "./captureProfile";
 import type { CaptureProfile } from "./captureProfile";
 import { LiveView } from "./LiveView";
+import { GuideView } from "./GuideView";
 import { TOPICS } from "./topics";
 import type { HealthResponse, HubClient, MessageEnvelope, SocketState, StatusResponse, StreamEvent } from "./types";
 
-type View = "overview" | "live" | "subject" | "recording" | "session" | "clients" | "topics" | "diagnostics";
+export type View = "guide" | "overview" | "live" | "subject" | "recording" | "session" | "clients" | "topics" | "diagnostics";
 
 const STORAGE_ENDPOINT_KEY = "biofeedback-dashboard.endpoint";
 const STORAGE_TOKEN_KEY = "biofeedback-dashboard.token";
 const DEFAULT_ENDPOINT = "http://127.0.0.1:8787";
 
 const NAV_ITEMS: Array<{ id: View; label: string; icon: typeof Gauge }> = [
+  { id: "guide", label: "Guia", icon: BookOpen },
   { id: "overview", label: "Overview", icon: Gauge },
   { id: "live", label: "Live", icon: Activity },
   { id: "subject", label: "Subject", icon: UserPlus },
@@ -339,6 +342,66 @@ export function App() {
     ws.onerror = (error) => {
       console.error("[dashboard] failed to publish experience.lifecycle", error);
     };
+  };
+
+  // Publica um marker direto no tópico experience.marker (anotação da timeline).
+  // Não depende de um cliente Unreal: o próprio monitor do dashboard recebe o
+  // evento de volta e o marker aparece na timeline/relatório, mesmo no demo.
+  const publishMarkerEvent = (label: string, note: string, markerId: string) => {
+    const markerEndpoint = normalizedEndpoint.endsWith("/ws")
+      ? normalizedEndpoint
+      : `${normalizedEndpoint.replace(/\/$/, "")}/ws`;
+    const runId = experienceRunRef.current.runId;
+    const trimmedNote = note.trim();
+
+    const ws = new WebSocket(markerEndpoint);
+
+    ws.onopen = () => {
+      ws.send(
+        JSON.stringify({
+          type: "hello",
+          clientId: "dashboard-marker",
+          payload: {
+            clientId: "dashboard-marker",
+            role: "dashboard",
+            capabilities: ["experience-marker"],
+          },
+        }),
+      );
+
+      ws.send(
+        JSON.stringify({
+          type: "publish",
+          clientId: "dashboard-marker",
+          topic: "experience.marker",
+          requiresAck: false,
+          payload: {
+            markerId,
+            label: label.trim(),
+            ...(trimmedNote ? { note: trimmedNote } : {}),
+            ...(runId ? { runId } : {}),
+            source: "dashboard",
+            reason: "ui",
+          },
+        }),
+      );
+
+      setTimeout(() => ws.close(), 1000);
+    };
+
+    ws.onerror = (error) => {
+      console.error("[dashboard] failed to publish experience.marker", error);
+    };
+  };
+
+  // Adiciona um marker: sempre registra a anotação local (experience.marker) e,
+  // se houver um cliente de comando (Unreal), também despacha o add-marker com ACK.
+  const addMarker = (label: string, note: string) => {
+    const markerId = createMarkerId();
+    publishMarkerEvent(label, note, markerId);
+    if (commandRecipients(status?.clients ?? []).length > 0) {
+      void dispatchUnrealAction("add-marker", buildMarkerArguments(label, note, markerId));
+    }
   };
 
   const exportSensorDataStream = () => {
@@ -608,6 +671,7 @@ export function App() {
           </div>
         </header>
 
+        {view === "guide" && <GuideView onNavigate={setView} />}
         {view === "overview" && (
           <OverviewView
             actions={actions}
@@ -655,6 +719,7 @@ export function App() {
             sensorSummaries={sensorTelemetry}
             sessionState={sessionState}
             status={status}
+            onAddMarker={addMarker}
             onClearHistory={() => setCommandHistory([])}
             onCommand={(action, commandArguments) => void dispatchUnrealAction(action, commandArguments)}
             onEndExperience={endExperience}
@@ -944,6 +1009,7 @@ function SessionControlView({
   experienceRun,
   experienceWasRestored,
   isDispatching,
+  onAddMarker,
   onClearHistory,
   onCommand,
   onEndExperience,
@@ -962,6 +1028,7 @@ function SessionControlView({
   experienceRun: ExperienceRunState;
   experienceWasRestored: boolean;
   isDispatching: boolean;
+  onAddMarker: (label: string, note: string) => void;
   onClearHistory: () => void;
   onCommand: (action: UnrealCommandAction, commandArguments?: Record<string, unknown>) => void;
   onEndExperience: () => void;
@@ -989,7 +1056,7 @@ function SessionControlView({
     experienceRun.status === "running" && canDispatchPauseSession(status?.clients ?? [], isDispatching, sessionState);
   const canDispatchResume =
     experienceRun.status === "paused" && canDispatchResumeSession(status?.clients ?? [], isDispatching, sessionState);
-  const canDispatchMarker = experienceIsActive && canDispatchAddMarker(status?.clients ?? [], isDispatching, markerLabel);
+  const canAnnotateMarkerNow = experienceIsActive && canAnnotateMarker(isDispatching, markerLabel);
   const timeline = useMemo(() => deriveAnalyticSessionTimeline(events, experienceRun, 200), [events, experienceRun]);
   const timelineFilterOptions = useMemo(() => deriveTimelineFilterOptions(timeline), [timeline]);
   const filteredTimeline = useMemo(
@@ -1022,11 +1089,11 @@ function SessionControlView({
     if (
       (confirmingAction === "pause-session" && !canDispatchPause) ||
       (confirmingAction === "resume-session" && !canDispatchResume) ||
-      (confirmingAction === "add-marker" && !canDispatchMarker)
+      (confirmingAction === "add-marker" && !canAnnotateMarkerNow)
     ) {
       setConfirmingAction(null);
     }
-  }, [canDispatchMarker, canDispatchPause, canDispatchResume, confirmingAction]);
+  }, [canAnnotateMarkerNow, canDispatchPause, canDispatchResume, confirmingAction]);
 
   useEffect(() => {
     if (experienceRun.status !== "running" && experienceRun.status !== "paused") {
@@ -1049,7 +1116,7 @@ function SessionControlView({
     const action = confirmingAction;
     setConfirmingAction(null);
     if (action === "add-marker") {
-      onCommand(action, buildMarkerArguments(markerLabel, markerNote, createMarkerId()));
+      onAddMarker(markerLabel, markerNote);
       setMarkerLabel("");
       setMarkerNote("");
       return;
@@ -1234,10 +1301,14 @@ function SessionControlView({
                   value={markerNote}
                   onChange={(event) => setMarkerNote(event.target.value)}
                 />
-                <button className="command-button" disabled={!canDispatchMarker} type="button" onClick={() => setConfirmingAction("add-marker")}>
+                <button className="command-button" disabled={!canAnnotateMarkerNow} type="button" onClick={() => setConfirmingAction("add-marker")}>
                   <Send size={16} /> {isDispatching ? "Waiting for ACK" : "Add marker"}
                 </button>
-                <p className="muted-copy">Adds an operational marker to the active experience timeline without changing running or paused state.</p>
+                <p className="muted-copy">
+                  {experienceIsActive
+                    ? "Adds an operational marker to the active experience timeline without changing running or paused state. Works without an Unreal client."
+                    : "Start the experience to enable markers."}
+                </p>
               </div>
             </Panel>
           </div>
@@ -2712,6 +2783,7 @@ function shortPopoverText(value: string, maxLength: number): string {
 }
 
 function titleForView(view: View): string {
+  if (view === "guide") return "Guia de Uso";
   if (view === "subject") return "Subject Registry";
   if (view === "live") return "Live Monitor";
   if (view === "recording") return "Recording Mode";

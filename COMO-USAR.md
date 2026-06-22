@@ -84,6 +84,10 @@ flowchart LR
 
 > Com `--mode hrv` (sem ECG), o painel de ECG fica vazio; HR/RR continuam funcionando.
 
+> **Markers:** com a experiência iniciada, em **Session Control → Operate** digite um rótulo
+> (ou use um preset) e clique **Add marker**. Desde a Fase 5 o marker é uma anotação local
+> (`experience.marker`) e aparece na **Timeline**/**Report** mesmo **sem** um cliente Unreal.
+
 ---
 
 ## 5. Encerrar
@@ -144,6 +148,7 @@ Aí, além do export pelo JSONL, o **driver grava o ECG bruto em arquivo** duran
 
 | Aba | Para quê |
 |---|---|
+| **Guia** | Guia de uso embutido: fluxo de 5 passos + o que cada aba faz (atalhos clicáveis) |
 | **Overview** | Saúde do sistema, sensores, eventos recentes |
 | **Live** | ECG ao vivo (canvas) + HR/RR |
 | **Subject** | Cadastro do sujeito + confundidores + consentimento |
