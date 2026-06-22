@@ -22,7 +22,7 @@ Documentos relacionados: [README.md](README.md) · [GUIA-PROJETO.md](GUIA-PROJET
 | ① | Cadastro da pessoa + confundidores | ✅ **Implementado** (Fase 1) |
 | ② | Modos de gravação + seleção de sensores | ✅ **Implementado** (Fase 2) |
 | ③ | Visualização ao vivo | ⬜ Pendente (Fase 4) |
-| ④ | Salvamento `.npy`/`.mat` | 🟡 **Parcial** — fundação + `.npy` pronto; export massivo server-side é a Fase 3 |
+| ④ | Salvamento `.npy`/`.mat` | ✅ **Implementado** (Fase 3) — export server-side do JSONL, com metadados |
 
 ### Histórico de commits (main)
 
@@ -108,6 +108,15 @@ Fecha o loop que a ponte `biofeedback-polarh10` já esperava.
 - [App.tsx](hub-ue/apps/dashboard/src/App.tsx) — aba **Recording**, estado/persistência; `capture` publicado no `experience.lifecycle started` e no export.
 
 **Decisões aplicadas:** D1 = Recorder no driver · D2 = CSV+NPY · D3 = `data/recordings/<runId>_<device>_ecg` · D8 = `/control` agora existe (a ponte pode rodar **sem** `--disable-recording-control`).
+
+### Fase 3 — Export massivo (④)
+
+Exportação server-side de dado massivo a partir do log JSONL do hub.
+
+- [tools/export_cli.py](polarh10_driver/tools/export_cli.py) — `extract_series()` extrai ECG/RR/HR do JSONL; gera `.npy` (numpy) e `.mat` (scipy) + sidecar `<out>.meta.json` com **sujeito + captura + run**, lidos do `experience.lifecycle started` no log.
+- `test/test_export_cli.py` — extração, metadados e e2e (npy/mat); CI roda com numpy + scipy.
+
+Uso: `python -m tools.export_cli --session <id> --signal ecg --format npy --out ecg.npy`
 
 ---
 
@@ -201,7 +210,6 @@ python test\test_control.py
 
 | Item | Detalhe |
 |---|---|
-| **Fase 3 — Export massivo** | Implementar `extract_series()` em [export_cli.py](polarh10_driver/tools/export_cli.py) (ecg/rr/hr do JSONL), `.mat` via scipy, embutir metadados do `ExportEnvelopeV2`. |
 | **Fase 4 — Live view** | View "Live" com waveform em canvas + ring buffer (frontend). |
 | **Fase 1.1 (opcional)** | Tornar o consentimento um gate obrigatório do "Start experience". |
 | **Decisões em aberto** | D2/D7 (formato final, endpoint de export) — ver [decisions-novas-features.md](hub-ue/docs/decisions-novas-features.md). |
