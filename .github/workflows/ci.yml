@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dashboard:
+    name: Dashboard typecheck & tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: hub-ue
+
+      - name: Typecheck dashboard
+        run: npm run typecheck:dashboard
+        working-directory: hub-ue
+
+      - name: Test dashboard
+        run: npm test -w @quest-supervisor/dashboard
+        working-directory: hub-ue
+
+  hub:
+    name: Python hub checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install hub
+        run: python -m pip install -e hub-ue/apps/hub
+
+      - name: Run hub tests
+        run: python -m unittest discover -s hub-ue/apps/hub/tests
+
+      - name: Compile hub modules
+        run: python -m compileall -q hub-ue/apps/hub/src hub-ue/apps/hub/tests
+
+      - name: Compile driver modules (stubs)
+        run: python -m compileall -q polarh10_driver/core polarh10_driver/tools polarh10_driver/config polarh10_driver/main.py
