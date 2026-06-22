@@ -1733,6 +1733,26 @@ textarea {
   resize: vertical;
 }
 
+.subject-grid {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  align-items: start;
+}
+
+.checkbox-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.checkbox-line input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
 .clients-layout,
 .topics-layout {
   display: grid;
