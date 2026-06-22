@@ -21,8 +21,10 @@ Documentos relacionados: [README.md](README.md) · [GUIA-PROJETO.md](GUIA-PROJET
 |---|---|---|
 | ① | Cadastro da pessoa + confundidores | ✅ **Implementado** (Fase 1) |
 | ② | Modos de gravação + seleção de sensores | ✅ **Implementado** (Fase 2) |
-| ③ | Visualização ao vivo | ⬜ Pendente (Fase 4) |
+| ③ | Visualização ao vivo | ✅ **Implementado** (Fase 4) — ECG em canvas + HR/RR ao vivo |
 | ④ | Salvamento `.npy`/`.mat` | ✅ **Implementado** (Fase 3) — export server-side do JSONL, com metadados |
+
+> **As 4 exigências do cliente estão implementadas e validadas por CI.**
 
 ### Histórico de commits (main)
 
@@ -118,6 +120,14 @@ Exportação server-side de dado massivo a partir do log JSONL do hub.
 
 Uso: `python -m tools.export_cli --session <id> --signal ecg --format npy --out ecg.npy`
 
+### Fase 4 — Visualização ao vivo (③)
+
+Monitor em tempo real no dashboard, sem sobrecarregar o React.
+
+- [liveSignal.ts](hub-ue/apps/dashboard/src/liveSignal.ts) — lógica pura/testável: janelas de ECG, séries HR/RR e decimação (`downsample`).
+- [LiveView.tsx](hub-ue/apps/dashboard/src/LiveView.tsx) — **ECG em `<canvas>`** (desenhado a partir do array derivado, fora do estado React) + **HR/RR em SVG** + BPM/RR atuais.
+- [App.tsx](hub-ue/apps/dashboard/src/App.tsx) — aba **Live**, alimentada pelos eventos `hrv.raw` vivos (que ainda têm o array `ecg`).
+
 ---
 
 ## 5. Fluxo funcional hoje (ponta a ponta)
@@ -210,7 +220,6 @@ python test\test_control.py
 
 | Item | Detalhe |
 |---|---|
-| **Fase 4 — Live view** | View "Live" com waveform em canvas + ring buffer (frontend). |
 | **Fase 1.1 (opcional)** | Tornar o consentimento um gate obrigatório do "Start experience". |
 | **Decisões em aberto** | D2/D7 (formato final, endpoint de export) — ver [decisions-novas-features.md](hub-ue/docs/decisions-novas-features.md). |
 | **Validação com hardware** | Testar o fluxo completo com o Polar H10 físico (driver + ponte + dashboard). |

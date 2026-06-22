@@ -124,10 +124,11 @@ import type { SubjectProfile, SubjectSnapshot } from "./subjectProfile";
 import { RecordingModeView } from "./RecordingModeView";
 import { createDefaultCaptureProfile, loadCaptureProfile, saveCaptureProfile } from "./captureProfile";
 import type { CaptureProfile } from "./captureProfile";
+import { LiveView } from "./LiveView";
 import { TOPICS } from "./topics";
 import type { HealthResponse, HubClient, MessageEnvelope, SocketState, StatusResponse, StreamEvent } from "./types";
 
-type View = "overview" | "subject" | "recording" | "session" | "clients" | "topics" | "diagnostics";
+type View = "overview" | "live" | "subject" | "recording" | "session" | "clients" | "topics" | "diagnostics";
 
 const STORAGE_ENDPOINT_KEY = "biofeedback-dashboard.endpoint";
 const STORAGE_TOKEN_KEY = "biofeedback-dashboard.token";
@@ -135,6 +136,7 @@ const DEFAULT_ENDPOINT = "http://127.0.0.1:8787";
 
 const NAV_ITEMS: Array<{ id: View; label: string; icon: typeof Gauge }> = [
   { id: "overview", label: "Overview", icon: Gauge },
+  { id: "live", label: "Live", icon: Activity },
   { id: "subject", label: "Subject", icon: UserPlus },
   { id: "recording", label: "Recording", icon: Database },
   { id: "session", label: "Session Control", icon: Command },
@@ -626,6 +628,7 @@ export function App() {
             onRefresh={() => void refresh()}
           />
         )}
+        {view === "live" && <LiveView events={events} />}
         {view === "subject" && (
           <SubjectView profile={subjectProfile} onChange={setSubjectProfile} />
         )}
@@ -2710,6 +2713,7 @@ function shortPopoverText(value: string, maxLength: number): string {
 
 function titleForView(view: View): string {
   if (view === "subject") return "Subject Registry";
+  if (view === "live") return "Live Monitor";
   if (view === "recording") return "Recording Mode";
   if (view === "session") return "Session Control";
   if (view === "clients") return "Connected Clients";

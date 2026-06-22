@@ -1755,6 +1755,30 @@ textarea {
   flex: none;
 }
 
+.live-canvas {
+  width: 100%;
+  height: auto;
+  background: #0b1424;
+  border: 1px solid var(--line-strong);
+}
+
+.live-metrics {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 12px;
+}
+
+.trend-block {
+  margin-top: 12px;
+}
+
+.trend-svg {
+  width: 100%;
+  height: 60px;
+  background: #0b1424;
+  border: 1px solid var(--line);
+}
+
 .clients-layout,
 .topics-layout {
   display: grid;
