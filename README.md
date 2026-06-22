@@ -44,6 +44,9 @@ npm install ; npm run dev:dashboard             # dashboard (:5173)
 .\.venv\Scripts\biofeedback-sim --mode hrv      # sensor simulado
 ```
 
+> Para ver a **waveform de ECG ao vivo** na aba **Live** sem o Polar, use
+> `biofeedback-sim --mode hrv-ecg` (gera ECG sintético). O modo `hrv` envia só HR/RR.
+
 O passo a passo completo (inclusive **com o Polar H10**) está em [GUIA-PROJETO.md](GUIA-PROJETO.md).
 
 ## Estrutura

@@ -40,7 +40,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run a simulated biofeedback hub client.")
     parser.add_argument("--url", default="ws://127.0.0.1:8787/ws")
     parser.add_argument("--token", default=None)
-    parser.add_argument("--mode", choices=["logger", "hrv", "eeg", "unreal", "multi-sensor"], default="logger")
+    parser.add_argument("--mode", choices=["logger", "hrv", "hrv-ecg", "eeg", "unreal", "multi-sensor"], default="logger")
     args = parser.parse_args()
 
     asyncio.run(run_client(args.url, args.mode, args.token))
@@ -59,7 +59,7 @@ async def run_client(url: str, mode: str, token: str | None) -> None:
     connect_url = f"{url}?token={token}" if token else url
     async with websockets.connect(connect_url) as socket:
         client_id = f"{mode}-sim" if mode != "unreal" else "unreal-quest-sim"
-        role = ClientRole.SENSOR if mode in {"hrv", "eeg"} else ClientRole(mode)
+        role = ClientRole.SENSOR if mode in {"hrv", "hrv-ecg", "eeg"} else ClientRole(mode)
         await socket.send(
             MessageEnvelope(
                 type=MessageType.HELLO,
@@ -70,8 +70,8 @@ async def run_client(url: str, mode: str, token: str | None) -> None:
 
         if mode == "logger":
             await _run_logger(socket, client_id)
-        elif mode == "hrv":
-            await _run_sensor(socket, client_id, SimulatedHrvAdapter())
+        elif mode in {"hrv", "hrv-ecg"}:
+            await _run_sensor(socket, client_id, SimulatedHrvAdapter(emit_ecg=(mode == "hrv-ecg")))
         elif mode == "eeg":
             await _run_sensor(socket, client_id, SimulatedEegAdapter())
         else:
