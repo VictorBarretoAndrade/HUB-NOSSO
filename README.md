@@ -56,6 +56,6 @@ HUB-NOSSO/
 └── PLANO-NOVAS-FEATURES.md
 ```
 
-> Em desenvolvimento: as novas features (sujeito, gravação, live view, export massivo)
-> têm o scaffolding da Fase 0 criado — ver o plano. O caminho recomendado é trabalhar
-> em **branches por feature**.
+> As novas features (cadastro do sujeito, modos de gravação, export `.npy`/`.mat` e
+> visualização ao vivo) estão **implementadas** (Fases 0–4) e validadas por CI.
+> Detalhes em [MUDANCAS.md](MUDANCAS.md).

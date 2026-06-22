@@ -1,8 +1,8 @@
 # Mudanças e Estado Atual — HUB-NOSSO
 
 Registro de tudo que foi feito neste repositório: a criação do monorepo, a infraestrutura
-(CI) e a implementação das **Fases 0, 1 e 2** das novas features. Inclui o mapa de
-arquivos novos/alterados e o estado atual de cada exigência do cliente.
+(CI) e a implementação das **Fases 0 a 4** — as **4 exigências do cliente concluídas**.
+Inclui o mapa de arquivos novos/alterados e o estado atual de cada exigência.
 
 Documentos relacionados: [README.md](README.md) · [GUIA-PROJETO.md](GUIA-PROJETO.md) · [PLANO-NOVAS-FEATURES.md](PLANO-NOVAS-FEATURES.md) · [docs de decisões](hub-ue/docs/decisions-novas-features.md)
 
@@ -11,9 +11,9 @@ Documentos relacionados: [README.md](README.md) · [GUIA-PROJETO.md](GUIA-PROJET
 ## 1. Estado atual (resumo)
 
 - **Repositório:** monorepo único em `github.com/VictorBarretoAndrade/HUB-NOSSO`, branch `main`.
-- **Conteúdo:** os dois projetos (`hub-ue` + `polarh10_driver`) + guias + scaffolding + Fases 0–2.
+- **Conteúdo:** os dois projetos (`hub-ue` + `polarh10_driver`) + guias + scaffolding + Fases 0–4 (todas as 4 exigências).
 - **CI:** GitHub Actions valida cada push (dashboard, hub e driver). **Verde** em todas as fases.
-- **Branches:** `main` (tudo consolidado) + `feat/fase-0-fundacao`, `feat/fase-1-sujeito`, `feat/fase-2-gravacao`.
+- **Branches:** `main` (tudo consolidado) + `feat/fase-0-fundacao`, `feat/fase-1-sujeito`, `feat/fase-2-gravacao`, `feat/fase-3-export`, `feat/fase-4-live`.
 
 ### Progresso das exigências
 
@@ -29,6 +29,9 @@ Documentos relacionados: [README.md](README.md) · [GUIA-PROJETO.md](GUIA-PROJET
 ### Histórico de commits (main)
 
 ```
+5a5087f  feat(fase-4): visualização ao vivo (ECG canvas + HR/RR) — fecha as 4 exigências
+ba1229c  feat(fase-3): export .npy/.mat server-side a partir do JSONL + metadados
+fc58955  docs: adiciona MUDANCAS.md (changelog e estado atual das fases 0-2)
 4f5f897  feat(fase-2): gravação no driver (/control + Recorder) + tela de modos
 49bf460  ci: GitHub Actions valida dashboard (typecheck+vitest) e hub (unittest)
 c10f154  feat(fase-1): tela de cadastro do sujeito + binding na experiência
@@ -168,10 +171,12 @@ sequenceDiagram
 | [exportFormats.ts](hub-ue/apps/dashboard/src/exportFormats.ts) + `.test.ts` | Export (regra, `.npy`, envelope v2) |
 | [SubjectView.tsx](hub-ue/apps/dashboard/src/SubjectView.tsx) | Tela de cadastro do sujeito |
 | [RecordingModeView.tsx](hub-ue/apps/dashboard/src/RecordingModeView.tsx) | Tela de modos de gravação |
+| [liveSignal.ts](hub-ue/apps/dashboard/src/liveSignal.ts) + `.test.ts` | Lógica da visualização ao vivo (janelas/decimação) |
+| [LiveView.tsx](hub-ue/apps/dashboard/src/LiveView.tsx) | Monitor ao vivo (ECG canvas + HR/RR) |
 | [schemas/capture.py](hub-ue/apps/hub/src/biofeedback_hub/schemas/capture.py) + `tests/test_capture_schemas.py` | Contrato Pydantic |
 | [core/recorder.py](polarh10_driver/core/recorder.py) | Gravação de ECG bruto |
 | [core/control.py](polarh10_driver/core/control.py) | Handler de `/control` |
-| [tools/export_cli.py](polarh10_driver/tools/export_cli.py) + `tools/__init__.py` | Exportador `.npy`/`.mat` (esqueleto p/ Fase 3) |
+| [tools/export_cli.py](polarh10_driver/tools/export_cli.py) + `tools/__init__.py` | Exportador `.npy`/`.mat` server-side (implementado na Fase 3) |
 | `test/test_recorder.py`, `test/test_control.py`, `test/test_export_cli.py` | Testes do driver |
 | [docs/decisions-novas-features.md](hub-ue/docs/decisions-novas-features.md) | Decision log |
 
@@ -179,7 +184,7 @@ sequenceDiagram
 
 | Arquivo | Mudança |
 |---|---|
-| [App.tsx](hub-ue/apps/dashboard/src/App.tsx) | Abas Subject e Recording; estado, persistência, lifecycle e export |
+| [App.tsx](hub-ue/apps/dashboard/src/App.tsx) | Abas Subject, Recording e Live; estado, persistência, lifecycle e export |
 | [experienceReport.ts](hub-ue/apps/dashboard/src/experienceReport.ts) | `subject`/`capture` opcionais no export |
 | [styles.css](hub-ue/apps/dashboard/src/styles.css) | Estilos das telas novas + checkbox |
 | [websocket_gateway.py](polarh10_driver/core/websocket_gateway.py) | Endpoint `/control` + gravação no loop |
