@@ -24,6 +24,7 @@ driver e publica no hub como tópico `hrv.raw`.
 
 ## Documentação
 
+- **[COMO-USAR.md](COMO-USAR.md)** — runbook passo a passo: rodar e **usar as 4 features** (Subject → Recording → Live → Export), sem hardware.
 - **[GUIA-PROJETO.md](GUIA-PROJETO.md)** — guia visual de como o sistema funciona, como os projetos se conectam e como rodar (com e sem o Polar).
 - **[PLANO-NOVAS-FEATURES.md](PLANO-NOVAS-FEATURES.md)** — análise + plano conceitual das novas features (cadastro do sujeito, modos de gravação, visualização ao vivo, export `.npy`/`.mat`).
 - [hub-ue/docs/decisions-novas-features.md](hub-ue/docs/decisions-novas-features.md) — decisões em aberto.
