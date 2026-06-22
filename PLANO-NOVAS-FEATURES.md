@@ -397,6 +397,7 @@ Os contratos, esqueletos, specs de teste e documentação de apoio **já existem
 - [exportFormats.ts](hub-ue/apps/dashboard/src/exportFormats.ts) — `ExportJob`, regra client/server, **encoder `.npy` já funcional**, `buildExportEnvelopeV2`.
 - **Fundação implementada (Fase 0):** o export do Report ([experienceReport.ts](hub-ue/apps/dashboard/src/experienceReport.ts)) embute `subject`/`capture` opcionais (retrocompatível, `schemaVersion` 1 mantido).
 - **Fase 1 (Sujeito) iniciada:** tela [SubjectView.tsx](hub-ue/apps/dashboard/src/SubjectView.tsx) (cadastro + confundidores + consentimento) ligada ao [App.tsx](hub-ue/apps/dashboard/src/App.tsx); perfil persistido em `localStorage` e anexado ao `experience.lifecycle started` e ao export do Report.
+- **Fase 2 (Gravação) iniciada:** driver com `/control` ([websocket_gateway.py](polarh10_driver/core/websocket_gateway.py), [...dashboard.py](polarh10_driver/core/websocket_gateway_dashboard.py)) + `Recorder` funcional ([recorder.py](polarh10_driver/core/recorder.py), grava CSV + NPY) acionado por [control.py](polarh10_driver/core/control.py); `mode` lido no [main.py](polarh10_driver/main.py). Dashboard com tela [RecordingModeView.tsx](hub-ue/apps/dashboard/src/RecordingModeView.tsx); `CaptureProfile` persistido e publicado no `experience.lifecycle started`. CI valida driver (Recorder/control) + dashboard.
 - Specs Vitest: `subjectProfile.test.ts`, `captureProfile.test.ts`, `exportFormats.test.ts` (verdes; `it.todo` no que falta).
 
 **Contrato (hub, Python):**

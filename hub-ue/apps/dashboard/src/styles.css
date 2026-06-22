@@ -1747,7 +1747,9 @@ textarea {
   color: var(--text);
 }
 
-.checkbox-line input[type="checkbox"] {
+.checkbox-line input[type="checkbox"],
+.checkbox-line input[type="radio"],
+.data-table input[type="checkbox"] {
   width: 16px;
   height: 16px;
   flex: none;

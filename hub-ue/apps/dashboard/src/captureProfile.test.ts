@@ -3,8 +3,23 @@ import {
   buildCaptureLifecyclePayload,
   createDefaultCaptureProfile,
   isCaptureValid,
+  loadCaptureProfile,
+  saveCaptureProfile,
   toggleSignal,
 } from "./captureProfile";
+
+class MemoryStorage {
+  private data = new Map<string, string>();
+  getItem(key: string): string | null {
+    return this.data.get(key) ?? null;
+  }
+  setItem(key: string, value: string): void {
+    this.data.set(key, value);
+  }
+  removeItem(key: string): void {
+    this.data.delete(key);
+  }
+}
 
 describe("captureProfile", () => {
   it("defaults to stream-only with no sensors", () => {
@@ -37,5 +52,13 @@ describe("captureProfile", () => {
     expect(payload.event).toBe("started");
     expect((payload.capture as { sensors: unknown[] }).sensors).toHaveLength(1);
     expect(payload.subject).toBeUndefined();
+  });
+
+  it("round-trips through storage", () => {
+    const storage = new MemoryStorage();
+    const profile = toggleSignal({ ...createDefaultCaptureProfile(), mode: "record" as const }, "polar-h10", "ecg");
+    saveCaptureProfile(storage, profile);
+    expect(loadCaptureProfile(storage)).toEqual(profile);
+    expect(loadCaptureProfile(new MemoryStorage())).toBeNull();
   });
 });

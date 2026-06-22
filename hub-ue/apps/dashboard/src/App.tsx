@@ -121,10 +121,13 @@ import type { TimelineKindFilter } from "./timelineTools";
 import { SubjectView } from "./SubjectView";
 import { loadSubjectProfile, saveSubjectProfile, subjectSnapshotForRun } from "./subjectProfile";
 import type { SubjectProfile, SubjectSnapshot } from "./subjectProfile";
+import { RecordingModeView } from "./RecordingModeView";
+import { createDefaultCaptureProfile, loadCaptureProfile, saveCaptureProfile } from "./captureProfile";
+import type { CaptureProfile } from "./captureProfile";
 import { TOPICS } from "./topics";
 import type { HealthResponse, HubClient, MessageEnvelope, SocketState, StatusResponse, StreamEvent } from "./types";
 
-type View = "overview" | "subject" | "session" | "clients" | "topics" | "diagnostics";
+type View = "overview" | "subject" | "recording" | "session" | "clients" | "topics" | "diagnostics";
 
 const STORAGE_ENDPOINT_KEY = "biofeedback-dashboard.endpoint";
 const STORAGE_TOKEN_KEY = "biofeedback-dashboard.token";
@@ -133,6 +136,7 @@ const DEFAULT_ENDPOINT = "http://127.0.0.1:8787";
 const NAV_ITEMS: Array<{ id: View; label: string; icon: typeof Gauge }> = [
   { id: "overview", label: "Overview", icon: Gauge },
   { id: "subject", label: "Subject", icon: UserPlus },
+  { id: "recording", label: "Recording", icon: Database },
   { id: "session", label: "Session Control", icon: Command },
   { id: "clients", label: "Clients", icon: Users },
   { id: "topics", label: "Topics", icon: FileText },
@@ -143,6 +147,9 @@ export function App() {
   const [initialExperienceSession] = useState(() => loadExperienceSession(localStorage));
   const [view, setView] = useState<View>("overview");
   const [subjectProfile, setSubjectProfile] = useState<SubjectProfile | null>(() => loadSubjectProfile(localStorage));
+  const [captureProfile, setCaptureProfile] = useState<CaptureProfile>(
+    () => loadCaptureProfile(localStorage) ?? createDefaultCaptureProfile(),
+  );
   const [endpoint, setEndpoint] = useState(() => localStorage.getItem(STORAGE_ENDPOINT_KEY) ?? DEFAULT_ENDPOINT);
   const [token, setToken] = useState(() => localStorage.getItem(STORAGE_TOKEN_KEY) ?? "");
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -305,6 +312,7 @@ export function App() {
           label,
           source: "dashboard",
           reason: "ui",
+          capture: captureProfile,
           ...(subjectProfile ? { subject: subjectSnapshotForRun(subjectProfile) } : {}),
         },
       };
@@ -413,6 +421,10 @@ export function App() {
       saveSubjectProfile(localStorage, subjectProfile);
     }
   }, [subjectProfile]);
+
+  useEffect(() => {
+    saveCaptureProfile(localStorage, captureProfile);
+  }, [captureProfile]);
 
   useEffect(() => {
     experienceRunRef.current = experienceRun;
@@ -617,6 +629,18 @@ export function App() {
         {view === "subject" && (
           <SubjectView profile={subjectProfile} onChange={setSubjectProfile} />
         )}
+        {view === "recording" && (
+          <RecordingModeView
+            capture={captureProfile}
+            sensors={Array.from(
+              new Set([
+                ...(status?.clients ?? []).filter((client) => client.role === "sensor").map((client) => client.clientId),
+                ...captureProfile.sensors.map((sensor) => sensor.clientId),
+              ]),
+            )}
+            onChange={setCaptureProfile}
+          />
+        )}
         {view === "session" && (
           <SessionControlView
             commandHistory={commandHistory}
@@ -635,6 +659,7 @@ export function App() {
             onStartExperience={startExperience}
             onStartNewExperience={startNewExperience}
             subject={subjectProfile ? subjectSnapshotForRun(subjectProfile) : undefined}
+            capture={captureProfile}
           />
         )}
         {view === "clients" && (
@@ -926,6 +951,7 @@ function SessionControlView({
   sessionState,
   status,
   subject,
+  capture,
 }: {
   commandHistory: CommandHistoryItem[];
   events: StreamEvent[];
@@ -943,6 +969,7 @@ function SessionControlView({
   sessionState: SessionStateSummary;
   status: StatusResponse | null;
   subject?: SubjectSnapshot;
+  capture?: CaptureProfile;
 }) {
   const [confirmingAction, setConfirmingAction] = useState<UnrealCommandAction | null>(null);
   const [markerLabel, setMarkerLabel] = useState("");
@@ -1069,7 +1096,7 @@ function SessionControlView({
     const exportedAt = new Date().toISOString();
     const content =
       format === "json"
-        ? serializeExperienceReportJson(report, exportedAt, { timeline, commandHistory, subject })
+        ? serializeExperienceReportJson(report, exportedAt, { timeline, commandHistory, subject, capture })
         : serializeExperienceReportCsv(report);
     const mimeType = format === "json" ? "application/json" : "text/csv";
     downloadTextFile(filename, content, mimeType);
@@ -2683,6 +2710,7 @@ function shortPopoverText(value: string, maxLength: number): string {
 
 function titleForView(view: View): string {
   if (view === "subject") return "Subject Registry";
+  if (view === "recording") return "Recording Mode";
   if (view === "session") return "Session Control";
   if (view === "clients") return "Connected Clients";
   if (view === "topics") return "Topic Stream";

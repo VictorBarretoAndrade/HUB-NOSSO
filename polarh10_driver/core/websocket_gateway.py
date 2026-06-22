@@ -1,8 +1,11 @@
 import asyncio
+import json
 import logging
 
 from fastapi import FastAPI, WebSocket
 import uvicorn
+
+from core.control import handle_control_command
 
 
 # Logging messages
@@ -19,7 +22,7 @@ GENERIC_EXCEPTION = Exception
 class WebSocketGateway:
     """WebSocket gateway for real-time streaming of processed data."""
 
-    def __init__(self, config, data_source):
+    def __init__(self, config, data_source, recorder=None):
         """
         Initialize WebSocket gateway.
 
@@ -29,9 +32,12 @@ class WebSocketGateway:
             Configuration source containing gateway parameters.
         data_source : object
             Asynchronous data provider exposing `get_packet()`.
+        recorder : object, optional
+            Recorder acionado via /control para gravar ECG bruto.
         """
         self.config = config
         self.data_source = data_source
+        self.recorder = recorder
 
         self.host = config.get("gateway", "host")
         self.port = config.get("gateway", "port")
@@ -69,6 +75,18 @@ class WebSocketGateway:
 
                 logging.info(LOG_CLIENT_DISCONNECTED)
 
+        @self.app.websocket("/control")
+        async def control_endpoint(ws: WebSocket):
+            """Canal de controle de gravação (start/stop) acionado pela ponte."""
+            await ws.accept()
+            try:
+                while True:
+                    raw = await ws.receive_text()
+                    response = await handle_control_command(json.loads(raw), self.recorder)
+                    await ws.send_json(response)
+            except GENERIC_EXCEPTION:
+                pass
+
     async def broadcast(self, data):
         """
         Send data to all connected clients.
@@ -97,6 +115,8 @@ class WebSocketGateway:
         """
         while True:
             packet = await self.data_source.get_packet()
+            if self.recorder is not None:
+                self.recorder.write(packet)
             await self.broadcast(packet)
 
     async def start(self):

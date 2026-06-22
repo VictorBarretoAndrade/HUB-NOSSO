@@ -4,9 +4,10 @@
 // (no payload de experience.lifecycle) e o driver executa (via /control).
 // Ver PLANO-NOVAS-FEATURES.md (exigência ②).
 
-import type { SubjectSnapshot } from "./subjectProfile";
+import type { KeyValueStorage, SubjectSnapshot } from "./subjectProfile";
 
 export const CAPTURE_SCHEMA_VERSION = 2 as const;
+export const CAPTURE_STORAGE_KEY = "biofeedback-dashboard.capture.v1";
 
 export type RecordingMode = "stream" | "record" | "hybrid";
 export type SignalKind = "ecg" | "rr" | "hr" | "hrv" | "eeg" | "imu";
@@ -79,4 +80,30 @@ export function buildCaptureLifecyclePayload(args: {
     payload.subject = args.subject;
   }
   return payload;
+}
+
+export function saveCaptureProfile(storage: KeyValueStorage, profile: CaptureProfile): void {
+  storage.setItem(CAPTURE_STORAGE_KEY, JSON.stringify(profile));
+}
+
+export function loadCaptureProfile(storage: KeyValueStorage): CaptureProfile | null {
+  const raw = storage.getItem(CAPTURE_STORAGE_KEY);
+  if (!raw) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw) as Partial<CaptureProfile>;
+    if (parsed.schemaVersion !== CAPTURE_SCHEMA_VERSION || !Array.isArray(parsed.sensors)) {
+      return null;
+    }
+    const mode: RecordingMode = parsed.mode === "record" || parsed.mode === "hybrid" ? parsed.mode : "stream";
+    return {
+      schemaVersion: CAPTURE_SCHEMA_VERSION,
+      mode,
+      sensors: parsed.sensors as SensorSelection[],
+      rawEcg: Boolean(parsed.rawEcg),
+    };
+  } catch {
+    return null;
+  }
 }

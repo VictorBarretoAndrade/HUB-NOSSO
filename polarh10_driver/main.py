@@ -3,6 +3,7 @@ import logging
 
 from config.data_loader import load_config
 from core.polar_client import PolarClient
+from core.recorder import Recorder
 
 
 # Logging configuration
@@ -68,8 +69,13 @@ async def main():
         from core.websocket_gateway import WebSocketGateway as Gateway
         logging.info(LOG_STANDARD_GATEWAY)
 
+    # Recorder acionado via /control (ponte -> driver). mode é informativo nesta v1.
+    recorder = Recorder(config)
+    mode = config.get("mode", default="stream")
+    logging.info("Recording mode: %s", mode)
+
     # Initialize and start gateway
-    gateway = Gateway(config, polar)
+    gateway = Gateway(config, polar, recorder)
     await gateway.start()
 
 

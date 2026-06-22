@@ -1,9 +1,12 @@
 import asyncio
+import json
 import logging
 
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import HTMLResponse
 import uvicorn
+
+from core.control import handle_control_command
 
 
 LOG_CLIENT_CONNECTED = "Client connected"
@@ -138,9 +141,10 @@ ws.onmessage = function(event){
 class WebSocketGatewayDashboard:
     """WebSocket gateway with embedded dashboard for real-time ECG visualization."""
 
-    def __init__(self, config, data_source):
+    def __init__(self, config, data_source, recorder=None):
         self.config = config
         self.data_source = data_source
+        self.recorder = recorder
 
         self.host = config.get("gateway", "host")
         self.port = config.get("gateway", "port")
@@ -175,6 +179,17 @@ class WebSocketGatewayDashboard:
 
                 logging.info(LOG_CLIENT_DISCONNECTED)
 
+        @self.app.websocket("/control")
+        async def control_endpoint(ws: WebSocket):
+            await ws.accept()
+            try:
+                while True:
+                    raw = await ws.receive_text()
+                    response = await handle_control_command(json.loads(raw), self.recorder)
+                    await ws.send_json(response)
+            except Exception:
+                pass
+
     async def broadcast(self, data):
 
         for client in list(self.clients):
@@ -190,6 +205,8 @@ class WebSocketGatewayDashboard:
 
         while True:
             packet = await self.data_source.get_packet()
+            if self.recorder is not None:
+                self.recorder.write(packet)
             await self.broadcast(packet)
 
     async def start(self):

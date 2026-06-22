@@ -1,26 +1,19 @@
-"""Handler do canal de controle /control (esqueleto — exigência ②).
+"""Handler do canal de controle /control (Fase 2 — exigência ②).
 
-A ponte (biofeedback-polarh10) já envia comandos para ws://localhost:8765/control,
-mas esse endpoint NÃO existe hoje. Este módulo define o handler; a rota WebSocket
-deve ser registrada no gateway.
+A ponte (biofeedback-polarh10) envia comandos de gravação para
+ws://localhost:8765/control ao receber experience.lifecycle. Este módulo roteia
+esses comandos para o Recorder.
 
-Para ligar no FastAPI (core/websocket_gateway.py), adicionar dentro de
-_configure_routes():
-
-    from core.control import handle_control_command
+Wiring no gateway (já feito em core/websocket_gateway*.py):
 
     @self.app.websocket("/control")
     async def control_endpoint(ws: WebSocket):
         await ws.accept()
-        try:
-            while True:
-                raw = await ws.receive_text()
-                response = await handle_control_command(json.loads(raw), self.recorder)
-                await ws.send_json(response)
-        except Exception:
-            pass
+        while True:
+            raw = await ws.receive_text()
+            await ws.send_json(await handle_control_command(json.loads(raw), self.recorder))
 
-Depois que /control existir, a ponte pode rodar SEM --disable-recording-control.
+Com /control disponível, a ponte roda SEM --disable-recording-control.
 """
 
 from __future__ import annotations
@@ -38,14 +31,17 @@ async def handle_control_command(message: dict[str, Any], recorder: Any) -> dict
     run_id = message.get("runId")
     capture = message.get("capture")
 
+    if recorder is None:
+        return {"ok": False, "error": "recorder unavailable"}
+
     if action == ACTION_START:
         logging.info("Control: start recording (runId=%s)", run_id)
-        # TODO(②): recorder.start(run_id, capture)
-        raise NotImplementedError("handle_control_command(start): chamar recorder.start().")
+        path = recorder.start(run_id, capture)
+        return {"ok": True, "action": ACTION_START, "runId": run_id, "path": str(path)}
 
     if action == ACTION_STOP:
         logging.info("Control: stop recording (runId=%s)", run_id)
-        # TODO(②): recorder.stop()
-        raise NotImplementedError("handle_control_command(stop): chamar recorder.stop().")
+        path = recorder.stop()
+        return {"ok": True, "action": ACTION_STOP, "runId": run_id, "path": (str(path) if path else None)}
 
     return {"ok": False, "error": f"unknown action: {action!r}"}
