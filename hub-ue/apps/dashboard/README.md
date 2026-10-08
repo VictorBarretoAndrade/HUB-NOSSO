@@ -1,58 +1,113 @@
 # Biofeedback Hub Dashboard
 
-Console operacional local-first para observar o hub Python, clientes conectados, topicos, ACKs pendentes e diagnostico basico.
+Console local (React + Vite + TypeScript) para operar uma sessão de biofeedback: preparar o sujeito e a gravação, controlar a experiência, acompanhar sensores ao vivo e exportar o relatório. A interface é toda em português; nomes do protocolo (`marker`, `ACK`, `payload`, tópicos, papéis) aparecem como trafegam no fio.
 
 ## Rodar em desenvolvimento
 
-Na raiz do repositorio:
+Na raiz do repositório:
 
 ```powershell
 npm install
 npm run dev:dashboard
 ```
 
-O Vite abre em:
+O Vite abre em `http://127.0.0.1:5173` e o dashboard conecta no hub em `http://127.0.0.1:8787`. O endereço e o token (opcional) são alterados em **Diagnóstico** e ficam salvos apenas no `localStorage` do navegador.
 
-```text
-http://127.0.0.1:5173
+Sem hardware, suba o hub e os simuladores (em terminais separados):
+
+```powershell
+.\.venv\Scripts\biofeedback-hub
+.\.venv\Scripts\biofeedback-sim --mode hrv-ecg   # sensor com ECG sintético
+.\.venv\Scripts\biofeedback-sim --mode unreal    # cliente Unreal simulado
 ```
 
-Por padrao, o dashboard tenta conectar no hub em:
+## Verificações
+
+| Comando (na raiz) | O que faz |
+|---|---|
+| `npm run typecheck:dashboard` | `tsc` em modo estrito, sem variáveis ou parâmetros não usados |
+| `npm run lint:dashboard` | ESLint (TypeScript + regras de hooks do React) |
+| `npm run test:dashboard` | Vitest sobre a lógica de domínio e a navegação |
+| `npm run check:dashboard` | As três verificações acima em sequência |
+| `npm run build:dashboard` | Build de produção |
+
+## Organização do código
 
 ```text
-http://127.0.0.1:8787
+src/
+├── main.tsx
+├── app/          Casca da aplicação e orquestração de estado
+│   ├── App.tsx, Sidebar.tsx, Topbar.tsx, ConnectionBanner.tsx
+│   ├── navigation.ts        Telas, grupos do menu e rotas por hash
+│   ├── useDashboard.ts      Compõe os hooks e deriva os dados das telas
+│   └── hooks/               Um hook por responsabilidade (ver abaixo)
+├── components/   Componentes compartilhados (Panel, Dialog, StatusPill, ToastRegion...)
+├── features/     Uma pasta por tela ou área: overview, subject, recording, session,
+│                 sensors, report, live, clients, topics, diagnostics, guide
+├── domain/       Lógica pura e testada, sem React (protocolo, lifecycle, relatório...)
+├── lib/          Utilitários genéricos (formatação, download, storage)
+└── styles/       CSS por área, a partir de tokens de design (tokens.css)
 ```
 
-Esse endpoint pode ser alterado na tela **Diagnostics**. O token e opcional e fica salvo apenas no `localStorage` do navegador.
+Regras de dependência: `domain/` não importa de `app/`, `components/` nem `features/`; as telas recebem dados e ações por props e não acessam `fetch`, `WebSocket` ou `localStorage` diretamente.
 
-## Escopo do MVP
+Hooks em `app/hooks/`:
 
-- `Overview`, `Clients` e `Diagnostics` usam dados reais de `/health` e `/status`.
-- `Topics` abre WebSocket como cliente `dashboard-ui`, assina os topicos oficiais e mostra eventos recebidos desde a abertura da tela.
-- `Session Control` envia `pause-session`, `resume-session` e `add-marker` para `unreal.commands` com `requiresAck=true`; `Calibrate` continua bloqueado ate virar contrato real.
-- O dashboard interpreta `unreal.state` como estado observado da sessao. `payload.state=running/paused/error` tem prioridade; quando o plugin real publica apenas `status`, `idle` vira `paused`, `online/busy` vira `running` e `error` vira `error`.
-- `pause-session` e `resume-session` tem duas confirmacoes na UI: ACK `accepted` mostra que o cliente aceitou o comando; `unreal.state=paused/running` mostra que o stream confirmou o estado observado.
-- `add-marker` tem duas confirmacoes na UI: ACK `accepted` mostra que o cliente aceitou o comando; `experience.marker` mostra que o marker entrou na timeline. O marker nao altera `running/paused`.
-- `experience.lifecycle` vindo do Unreal/Blueprint pode iniciar e finalizar automaticamente a experiencia analitica. Os botoes locais **Start experience** e **End experience** continuam como fallback.
-- `Session Control` tambem mostra uma timeline operacional com lifecycle, mudancas de `unreal.state` e markers de `experience.marker`. `Overview` mantem apenas o estado atual e o ultimo marker para reduzir ruido.
+| Hook | Responsabilidade |
+|---|---|
+| `useHubSettings` | Endereço e token do hub (validados antes de aplicar) |
+| `useHubStatus` | Polling de `/health` e `/status`, com estados carregando/online/offline |
+| `useHubSocket` | WebSocket de monitoramento, com reconexão automática e backoff |
+| `useStreamBuffer` | Janela de eventos ao vivo; telemetria de alta frequência agrupada por frame |
+| `useExperienceLifecycle` | Máquina de estados da experiência (`experience.lifecycle`) e recuperação de runs |
+| `useCommandDispatch` | Comandos com ACK para Unreal e Sensor Manager, com histórico |
+| `useSessionSetup` | Cadastro do sujeito e perfil de captura, persistidos localmente |
+| `useHashRoute` | Navegação por hash (`#/session/report`): voltar/avançar e recarregar funcionam |
+| `useToasts` | Avisos temporários de confirmação |
 
-## Fluxo recomendado para uma sessao real
+## Telas
 
-1. Conecte o hub, o Unreal real e qualquer sensor WebSocket que publique telemetria biometrica.
-2. Em **Diagnostics**, confirme o endpoint do hub usado pela experiencia.
-3. Em **Clients**, confirme o Unreal inscrito em `unreal.commands` e o Watch publicando `hrv.raw`.
-4. Em **Session Control**, clique em **Start experience** ou acione o node Blueprint **Start Experience** dentro do Unreal.
-5. Durante a experiencia, use **Pause session**, **Resume session** e **Add marker** conforme necessario. Markers enviados por Blueprint tambem entram na timeline.
-6. Ao terminar, clique em **End experience** ou acione o node Blueprint **End Experience**. O dashboard abre a subtab **Report** automaticamente.
-7. Revise **Report health**, grafico, marker callouts, biometrics summary e command issues.
-8. Exporte os arquivos necessarios antes de clicar em **Start next experience**.
+| Menu | Tela | Conteúdo |
+|---|---|---|
+| Início | **Visão geral** | Prontidão do sistema, sensor em foco, próximos passos e eventos recentes |
+| Preparar | **Sujeito** | Cadastro pseudônimo, fatores que afetam a HRV e consentimento |
+| Preparar | **Gravação** | Modo (só transmitir, gravar, híbrido) e sinais por sensor |
+| Operar | **Controle da sessão** | Iniciar/encerrar, comandos, markers, timeline, sensores, histórico e relatório |
+| Operar | **Ao vivo** | Waveform de ECG e tendências de HR e RR |
+| Monitorar | **Clientes** | Clientes conectados ao hub, por papel |
+| Monitorar | **Tópicos** | Stream de eventos com filtro, pausa e inspeção de payload |
+| Sistema | **Diagnóstico** | Configuração de rede, saúde do hub e exportação de diagnóstico |
+| Sistema | **Guia de uso** | Passo a passo de uma sessão e legenda dos selos |
 
-O Report e local ao navegador. Ele usa apenas eventos recebidos por este dashboard e restaurados do `localStorage`; outro browser ou computador nao tera o mesmo historico.
+## Comportamento em uma sessão
 
-## Exports do Report
+- `Visão geral`, `Clientes` e `Diagnóstico` usam dados reais de `/health` e `/status`.
+- O dashboard abre um WebSocket como cliente `dashboard-ui`, assina os tópicos oficiais e também os tópicos extras declarados pelos sensores. Se a conexão cai, um aviso aparece em todas as telas e a reconexão é automática.
+- **Iniciar experiência** e **Encerrar experiência** publicam `experience.lifecycle`. O `started` carrega o perfil de captura e, se houver, o snapshot do sujeito. Eventos de lifecycle vindos do Unreal/Blueprint também iniciam e encerram a experiência.
+- Encerrar, iniciar a próxima experiência e iniciar com o cadastro incompleto pedem confirmação. O motivo de um botão indisponível fica visível ao lado dele.
+- **Pausar sessão** e **Retomar sessão** vão para `unreal.commands` com `requiresAck=true` e têm duas confirmações: o ACK `accepted` (o cliente aceitou) e o `unreal.state` (o stream confirmou o estado).
+- **Markers** são enviados sem diálogo de confirmação, por Enter ou botão, para o carimbo de tempo corresponder ao momento observado. Com um cliente inscrito em `unreal.commands`, o marker vai como comando `add-marker` e entra na timeline quando o Unreal publica `experience.marker`. Sem esse cliente, o dashboard publica `experience.marker` diretamente.
+- Se o hub reportar uma run ativa que o dashboard não reconhece, a tela oferece **Encerrar run pendente** antes de permitir um novo início.
+- O relatório abre sozinho ao encerrar a experiência. Ele usa apenas eventos recebidos por este dashboard e restaurados do `localStorage`: outro navegador ou computador não tem o mesmo histórico, e iniciar a próxima experiência o substitui.
 
-- **Report JSON**: envelope `schemaVersion: 1` com `summary`, `report`, `analytics`, `timeline`, `commandHistory` e `sensors`. Use para arquivamento completo local.
-- **Markers CSV**: uma linha por marker, com tempo da experiencia, label, note, source, BPM/RR/signal do snapshot e `commandId` quando existir.
-- **Biometrics CSV**: resumo por sensor, com samples, BPM min/medio/max, RR medio, IBI total, gaps e sinal ruim.
-- **Biometrics Timeline CSV**: amostras biometricas no eixo de tempo da experiencia. Nao exporta arrays brutos de `ibiMs`.
-- **Timeline CSV**: eventos analiticos de marker/state/biometric observados na experiencia.
+## Exportações do relatório
+
+- **Relatório JSON**: envelope `schemaVersion: 1` com `summary`, `report`, `analytics`, `timeline`, `commandHistory`, `sensors` e, quando preenchidos, `subject` e `capture`.
+- **Markers CSV**: uma linha por marker, com tempo da experiência, rótulo, observação, origem, BPM/RR/sinal do instante e `commandId` quando existir.
+- **Biometria CSV**: resumo por sensor (amostras, BPM mín/méd/máx, RR médio, IBI total, falhas e sinal ruim).
+- **Biometria no tempo CSV**: amostras biométricas no eixo de tempo da experiência. Não exporta os arrays brutos de `ibiMs`.
+- **Timeline CSV**: eventos de marker, estado, lifecycle e biometria observados na experiência.
+
+Os nomes de colunas e chaves dos arquivos são estáveis. Os campos `title` e `detail` da timeline são texto de exibição e seguem o idioma da interface.
+
+A exportação binária (`.npy`/`.mat`) do ECG bruto é feita pelo CLI do `polarh10_driver`, a partir do log do hub.
+
+## Acessibilidade e usabilidade
+
+A interface foi revisada contra as heurísticas de Nielsen. Pontos que valem manter em mudanças futuras:
+
+- O estado da conexão com o hub e com o stream fica sempre visível no topo.
+- Toda ação tem retorno: aviso temporário após exportar, estado "aguardando" nos botões, motivo visível quando algo está indisponível.
+- Ações sem volta pedem confirmação; os diálogos fecham com Esc, prendem o foco e o devolvem a quem os abriu.
+- As cores de status têm contraste de pelo menos 4,5:1 e nunca são o único sinal: há sempre texto.
+- Tabelas e gráficos rolam dentro do próprio cartão; o layout se adapta até a largura de celular.

@@ -1,0 +1,27 @@
+/*
+ * Folha de estilos do dashboard. A ordem importa: tokens e base primeiro, depois
+ * estrutura e controles compartilhados, depois cada área da interface, e por
+ * último os ajustes responsivos, que sobrescrevem os demais.
+ */
+
+@import "./tokens.css";
+@import "./base.css";
+@import "./layout.css";
+@import "./controls.css";
+@import "./panels.css";
+@import "./tables.css";
+@import "./status.css";
+
+@import "./session.css";
+@import "./charts.css";
+@import "./dialogs.css";
+@import "./forms.css";
+@import "./live.css";
+@import "./clients-topics.css";
+@import "./timeline.css";
+@import "./guide.css";
+@import "./sensors.css";
+@import "./telemetry.css";
+@import "./feedback.css";
+
+@import "./responsive.css";

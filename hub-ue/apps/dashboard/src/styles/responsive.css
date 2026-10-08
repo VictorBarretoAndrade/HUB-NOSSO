@@ -1,0 +1,163 @@
+/* --------------------------------------------------------------------------
+   Responsivo
+   Até 1200px as grades viram uma coluna; até 720px a navegação lateral vira
+   uma barra horizontal rolável. Tabelas e gráficos rolam dentro do cartão.
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 1200px) {
+  .app-shell {
+    grid-template-columns: 208px minmax(0, 1fr);
+  }
+
+  .overview-grid,
+  .session-grid,
+  .diagnostics-grid,
+  .clients-layout,
+  .topics-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .clients-layout,
+  .topics-layout {
+    min-height: 0;
+  }
+
+  .readiness-row {
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+  }
+
+  .sensor-overview-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .experience-run-header,
+  .experience-run-header.ended,
+  .experience-run-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .experience-run-actions {
+    justify-content: flex-start;
+  }
+
+  .operate-tab {
+    grid-template-columns: 1fr;
+  }
+
+  .report-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .report-summary-hero,
+  .report-time-list,
+  .report-export-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .biometric-chart-toolbar {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .timeline-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .timeline-export-row,
+  .timeline-export-group {
+    align-items: stretch;
+  }
+
+  .client-detail,
+  .payload-panel {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar {
+    position: static;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .brand-block {
+    padding: 12px 16px;
+  }
+
+  .nav-list {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 6px 8px;
+  }
+
+  .nav-group {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 4px;
+  }
+
+  .nav-group-label {
+    display: none;
+  }
+
+  .nav-button {
+    width: auto;
+    flex: 0 0 auto;
+    padding: 0 12px;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 12px 16px;
+  }
+
+  .session-id {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .content-grid {
+    padding: 12px;
+  }
+
+  .readiness-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .session-control-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .session-control-tabs button {
+    flex: 0 0 auto;
+  }
+
+  .experience-run-actions button {
+    width: 100%;
+  }
+
+  .unreal-telemetry-chart,
+  .biometric-chart {
+    min-width: 700px;
+  }
+
+  .confirm-dialog dl {
+    grid-template-columns: 1fr;
+  }
+
+  .toast-region {
+    right: 12px;
+    bottom: 12px;
+    width: calc(100vw - 24px);
+  }
+}

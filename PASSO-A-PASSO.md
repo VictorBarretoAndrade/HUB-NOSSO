@@ -2,7 +2,7 @@
 
 Guia prático e direto para **instalar, subir e usar** a plataforma ponta a ponta,
 **sem precisar de hardware** (usando ECG sintético). Ao final você terá rodado as
-**4 features**: cadastro do **Subject** → configuração de **Recording** → **Live** → **Export** `.npy`/`.mat`.
+**4 features**: cadastro do **Sujeito** → configuração da **Gravação** → **Ao vivo** → **Exportação** `.npy`/`.mat`.
 
 > Já tem o sistema rodando e quer só entender a arquitetura? Veja [GUIA-PROJETO.md](GUIA-PROJETO.md).
 > Quer o runbook resumido das features? Veja [COMO-USAR.md](COMO-USAR.md).
@@ -137,11 +137,11 @@ flowchart LR
 
 ---
 
-## 3. Feature 1 — Cadastrar o sujeito (aba **Subject**)
+## 3. Feature 1 — Cadastrar o sujeito (tela **Sujeito**)
 
 No dashboard (http://127.0.0.1:5173):
 
-1. Clique em **Subject** na barra lateral.
+1. Clique em **Sujeito** na barra lateral.
 2. Preencha o **Subject ID** (use um pseudônimo, ex.: `S-2026-014` — nunca dados pessoais reais).
 3. Preencha os campos de demografia e **confundidores** (cafeína, sono, exercício, etc.).
 4. Marque **"Consinto com a coleta..."**.
@@ -151,9 +151,9 @@ No dashboard (http://127.0.0.1:5173):
 
 ---
 
-## 4. Feature 2 — Configurar a gravação (aba **Recording**)
+## 4. Feature 2 — Configurar a gravação (tela **Gravação**)
 
-1. Clique em **Recording**.
+1. Clique em **Gravação**.
 2. Escolha o **modo**:
    - **Stream-only** — só transmite ao vivo, não grava.
    - **Record** — grava para análise posterior.
@@ -165,16 +165,16 @@ No dashboard (http://127.0.0.1:5173):
 
 ---
 
-## 5. Feature 3 — Iniciar e ver ao vivo (**Session Control** + **Live**)
+## 5. Feature 3 — Iniciar e ver ao vivo (**Controle da sessão** + **Ao vivo**)
 
-1. Vá em **Session Control** → **Start experience**.
+1. Vá em **Controle da sessão** → **Iniciar experiência**.
    - Isso publica `experience.lifecycle started` com o **subject + capture**.
-2. Abra a aba **Live**:
+2. Abra a tela **Ao vivo**:
    - 🟢 **ECG ao vivo** no canvas (porque o sim está em `--mode hrv-ecg`);
    - gráficos de **HR/RR** e os valores atuais de **BPM/RR**.
-3. Durante a sessão você pode usar **markers** (Add marker) e acompanhar a **timeline**.
-4. Ao terminar: **Session Control → End experience**.
-   - Publica `experience.lifecycle ended` e abre o **Report** (exportável em JSON/CSV, já com `subject`/`capture` embutidos).
+3. Durante a sessão você pode usar **markers** (Adicionar marker) e acompanhar a **timeline**.
+4. Ao terminar: **Controle da sessão → Encerrar experiência**.
+   - Publica `experience.lifecycle ended` e abre o **Relatório** (exportável em JSON/CSV, já com `subject`/`capture` embutidos).
 
 ---
 
@@ -226,15 +226,15 @@ Exporte (troque `<sessionId>` pelo valor real):
 
 | Aba | Para quê |
 |---|---|
-| **Guia** | Guia de uso embutido (este passo a passo, resumido, com atalhos para as abas) |
-| **Overview** | Saúde do sistema, sensores, eventos recentes |
-| **Live** | ECG ao vivo (canvas) + HR/RR |
-| **Subject** | Cadastro do sujeito + confundidores + consentimento |
-| **Recording** | Modo de gravação + seleção de sensores/sinais |
-| **Session Control** | Start/End experience, markers, timeline, Report/exports |
-| **Clients** | Clientes conectados ao hub |
-| **Topics** | Stream de eventos por tópico |
-| **Diagnostics** | Endpoint/token do hub |
+| **Guia de uso** | Guia de uso embutido (este passo a passo, resumido, com atalhos para as abas) |
+| **Visão geral** | Saúde do sistema, sensores, eventos recentes |
+| **Ao vivo** | ECG ao vivo (canvas) + HR/RR |
+| **Sujeito** | Cadastro do sujeito + confundidores + consentimento |
+| **Gravação** | Modo de gravação + seleção de sensores/sinais |
+| **Controle da sessão** | Iniciar/encerrar, comandos, markers, timeline, sensores e relatório |
+| **Clientes** | Clientes conectados ao hub |
+| **Tópicos** | Stream de eventos por tópico |
+| **Diagnóstico** | Endpoint/token do hub |
 
 ---
 
@@ -256,8 +256,8 @@ Exporte (troque `<sessionId>` pelo valor real):
 |---|---|
 | Dashboard mostra **Disconnected** | Suba o **hub antes** do dashboard. Confira `http://127.0.0.1:8787/health`. |
 | Dashboard **sem dados de sensor** | O sim (Terminal 3) não está rodando, ou subiu antes do hub. Reinicie na ordem do passo 2. |
-| Aba **Live** sem ECG | Use `--mode hrv-ecg` (não `--mode hrv`) no simulador. |
-| Sensor aparece 🟡 **Stale** | Sem amostra há >5 s — o sim parou. Reinicie o Terminal 3. |
+| Tela **Ao vivo** sem ECG | Use `--mode hrv-ecg` (não `--mode hrv`) no simulador. |
+| Sensor aparece 🟡 **Sem atualização** | Sem amostra há >5 s — o sim parou. Reinicie o Terminal 3. |
 | `biofeedback-hub` não encontrado | Você não ativou o venv certo. Use o caminho completo `.\.venv\Scripts\biofeedback-hub`. |
 | Faltam `fastapi`/`uvicorn` | Rode `.\.venv\Scripts\python -m pip install -e apps\hub` dentro de `hub-ue`. |
 | Export: "nenhuma amostra" | A sessão não tem ECG gravado. Use o sim em `--mode hrv-ecg` e confirme o `sessionId` certo. |

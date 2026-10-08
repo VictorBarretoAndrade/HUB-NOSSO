@@ -46,7 +46,7 @@ npm install ; npm run dev:dashboard             # dashboard (:5173)
 .\.venv\Scripts\biofeedback-sim --mode hrv      # sensor simulado
 ```
 
-> Para ver a **waveform de ECG ao vivo** na aba **Live** sem o Polar, use
+> Para ver a **waveform de ECG ao vivo** na tela **Ao vivo** sem o Polar, use
 > `biofeedback-sim --mode hrv-ecg` (gera ECG sintético). O modo `hrv` envia só HR/RR.
 
 O passo a passo completo (inclusive **com o Polar H10**) está em [GUIA-PROJETO.md](GUIA-PROJETO.md).
@@ -64,5 +64,7 @@ HUB-NOSSO/
 > As novas features (cadastro do sujeito, modos de gravação, export `.npy`/`.mat` e
 > visualização ao vivo) estão **implementadas** (Fases 0–4) e validadas por CI.
 > A **Fase 5** adicionou um redesign claro do dashboard (IBM Plex, cards separados),
-> uma aba **Guia** com tutorial embutido e markers que funcionam sem Unreal.
+> uma tela **Guia de uso** com tutorial embutido e markers que funcionam sem Unreal.
+> A **Fase 6** unificou o `hub-ue` com a versão mais recente (Sensor Manager, LSL, telemetria Unreal),
+> reorganizou o código do dashboard em módulos e passou a interface para português.
 > Detalhes em [MUDANCAS.md](MUDANCAS.md).

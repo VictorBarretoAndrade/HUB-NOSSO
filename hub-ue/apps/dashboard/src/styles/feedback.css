@@ -1,0 +1,260 @@
+/* --------------------------------------------------------------------------
+   Feedback ao operador: banner de conexão, toasts, avisos e dicas inline
+   -------------------------------------------------------------------------- */
+
+.connection-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--error-line);
+  background: var(--error-soft);
+  color: var(--error);
+  padding: 10px 24px;
+}
+
+.connection-banner.warn {
+  border-bottom-color: var(--warn-line);
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.connection-banner > svg {
+  flex: 0 0 auto;
+}
+
+.connection-banner-copy {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 2px;
+}
+
+.connection-banner-copy span {
+  color: var(--text);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.connection-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.toast-region {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 60;
+  display: grid;
+  gap: 8px;
+  width: min(380px, calc(100vw - 40px));
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--ok-line);
+  border-left-width: 4px;
+  background: var(--surface);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-pop);
+  color: var(--ok);
+  padding: 11px 12px;
+  pointer-events: auto;
+}
+
+.toast.error {
+  border-color: var(--error-line);
+  color: var(--error);
+}
+
+.toast > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.toast span {
+  min-width: 0;
+  flex: 1;
+  color: var(--text);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.toast-dismiss {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: var(--radius-chip);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.toast-dismiss:hover {
+  background: var(--surface-high);
+  color: var(--text);
+}
+
+.alert-line {
+  grid-column: 1 / -1;
+  border: 1px solid var(--error-line);
+  color: var(--error);
+  background: var(--error-soft);
+  border-radius: var(--radius-control);
+  padding: 12px 14px;
+}
+
+.alert-line.inline {
+  margin: 12px 0 0;
+}
+
+
+/* Explica, de forma sempre visível, por que um controle está indisponível. */
+.inline-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.field-error {
+  margin: 0;
+  color: var(--error);
+  font-size: 12px;
+}
+
+.table-footnote {
+  margin: 12px 0 0;
+  font-size: 12px;
+}
+
+.setup-strip {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.strip-list {
+  min-width: 0;
+  flex: 1 1 260px;
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.strip-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.observation-strip .strip-dismiss {
+  width: 28px;
+  min-height: 28px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.lifecycle-conflict-strip {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  border: 1px solid var(--error-line);
+  background: var(--error-soft);
+  border-radius: var(--radius-control);
+  padding: 12px 14px;
+}
+
+.lifecycle-conflict-strip > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.lifecycle-conflict-strip strong {
+  color: var(--error);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.lifecycle-conflict-strip span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lifecycle-conflict-strip .mini-button {
+  flex: 0 0 auto;
+}
+
+.confirm-dialog .dialog-warning {
+  margin: 0 16px 16px;
+  border: 1px solid var(--error-line);
+  background: var(--error-soft);
+  border-radius: var(--radius-control);
+  color: var(--error);
+  padding: 10px 12px;
+}
+
+.confirm-dialog .dialog-list {
+  margin: 0 16px 16px;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+}
+
+.error-fallback {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--error-line);
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 20px;
+}
+
+.error-fallback strong {
+  color: var(--error);
+  font-size: 16px;
+}
+
+.error-fallback p {
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .connection-banner {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding: 10px 12px;
+  }
+
+  .lifecycle-conflict-strip {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .lifecycle-conflict-strip .mini-button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

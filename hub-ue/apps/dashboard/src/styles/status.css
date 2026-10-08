@@ -1,0 +1,33 @@
+/* --------------------------------------------------------------------------
+   Pílulas de status
+   -------------------------------------------------------------------------- */
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-chip);
+  padding: 3px 8px;
+  font-size: 10px;
+}
+
+.status-pill.muted {
+  color: var(--muted);
+  background: var(--surface-high);
+  border-color: var(--line-strong);
+}
+
+.status-pill.ok {
+  background: var(--ok-soft);
+}
+
+.status-pill.warn {
+  background: var(--warn-soft);
+}
+
+.status-pill.error {
+  background: var(--error-soft);
+}
+

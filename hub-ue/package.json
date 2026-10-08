@@ -10,6 +10,9 @@
     "dev:demo": "powershell -ExecutionPolicy Bypass -File tools/dev/start_hub_demo.ps1",
     "dev:demo:stop": "powershell -ExecutionPolicy Bypass -File tools/dev/stop_hub_demo.ps1",
     "build:dashboard": "npm run build -w @quest-supervisor/dashboard",
-    "typecheck:dashboard": "npm run typecheck -w @quest-supervisor/dashboard"
+    "typecheck:dashboard": "npm run typecheck -w @quest-supervisor/dashboard",
+    "lint:dashboard": "npm run lint -w @quest-supervisor/dashboard",
+    "test:dashboard": "npm run test -w @quest-supervisor/dashboard",
+    "check:dashboard": "npm run check -w @quest-supervisor/dashboard"
   }
 }

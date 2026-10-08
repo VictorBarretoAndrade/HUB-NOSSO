@@ -1,0 +1,100 @@
+/* --------------------------------------------------------------------------
+   Botões / controles
+   -------------------------------------------------------------------------- */
+
+.icon-button,
+.command-button,
+.macro-button,
+.role-tabs button {
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  border-radius: var(--radius-control);
+  min-height: 36px;
+  padding: 0 14px;
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 500;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.icon-button {
+  width: 36px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
+.command-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  font-size: 13px;
+}
+
+.command-button:hover,
+.icon-button:hover,
+.role-tabs button:hover {
+  background: var(--surface-high);
+  border-color: var(--line-strong);
+}
+
+.command-button.strong {
+  border-color: var(--primary);
+  color: var(--on-primary);
+  background: var(--primary);
+}
+
+.command-button.strong:hover {
+  background: var(--primary-strong);
+}
+
+.command-button.danger {
+  border-color: var(--error-line);
+  color: var(--error);
+  background: var(--error-soft);
+}
+
+.command-button.danger:hover {
+  background: rgba(194, 54, 42, 0.18);
+}
+
+.disabled,
+button:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mini-button.danger {
+  border-color: var(--error-line);
+  color: var(--error);
+}
+
+.mini-button.danger:hover {
+  background: var(--error-soft);
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Botão "invisível" que torna uma linha de tabela selecionável pelo teclado. */
+.row-select {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row-select:hover {
+  text-decoration: underline;
+}

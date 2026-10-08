@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   dashboard:
-    name: Dashboard typecheck & tests
+    name: Dashboard typecheck, lint, tests & build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -18,7 +18,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Install dependencies
         run: npm ci
@@ -28,8 +28,16 @@ jobs:
         run: npm run typecheck:dashboard
         working-directory: hub-ue
 
+      - name: Lint dashboard
+        run: npm run lint:dashboard
+        working-directory: hub-ue
+
       - name: Test dashboard
-        run: npm test -w @quest-supervisor/dashboard
+        run: npm run test:dashboard
+        working-directory: hub-ue
+
+      - name: Build dashboard
+        run: npm run build:dashboard
         working-directory: hub-ue
 
   hub:

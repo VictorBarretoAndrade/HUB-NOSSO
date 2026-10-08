@@ -1,7 +1,7 @@
 # Como Usar — Runbook das Novas Features
 
 Passo a passo prático para **rodar e usar** as 4 features ponta a ponta:
-cadastro do **Subject** → configuração de **Recording** → **Live** → **Export** `.npy`/`.mat`.
+cadastro do **Sujeito** → configuração da **Gravação** → **Ao vivo** → **Exportação** `.npy`/`.mat`.
 
 Funciona **sem hardware** (com ECG sintético). As diferenças com o Polar real estão no fim.
 
@@ -52,9 +52,9 @@ flowchart LR
 
 ---
 
-## 2. Cadastrar o sujeito — aba **Subject**
+## 2. Cadastrar o sujeito — tela **Sujeito**
 
-1. Clique em **Subject** na barra lateral.
+1. Clique em **Sujeito** na barra lateral.
 2. Preencha **Subject ID** (pseudônimo, ex.: `S-2026-014`) e os campos de demografia/confundidores (cafeína, sono, etc.).
 3. Marque **"Consinto com a coleta..."**.
 4. O selo deve mudar para **"Pronto para iniciar"**.
@@ -63,9 +63,9 @@ flowchart LR
 
 ---
 
-## 3. Configurar a gravação — aba **Recording**
+## 3. Configurar a gravação — tela **Gravação**
 
-1. Clique em **Recording**.
+1. Clique em **Gravação**.
 2. Escolha o **modo**: `Stream-only`, `Record` ou `Hybrid`.
 3. Em **Sensores e sinais**, marque os sinais por sensor (ex.: `hrv-ecg-sim` → ECG / RR / HR).
 4. Opcional: **Capturar ECG bruto em arquivo**.
@@ -74,25 +74,26 @@ flowchart LR
 
 ---
 
-## 4. Iniciar e ver ao vivo — **Session Control** + **Live**
+## 4. Iniciar e ver ao vivo — **Controle da sessão** + **Ao vivo**
 
-1. Vá em **Session Control** e clique em **Start experience**.
+1. Vá em **Controle da sessão** e clique em **Iniciar experiência**.
    - Isso publica `experience.lifecycle started` com **subject + capture** (vai para o log do hub).
-2. Abra a aba **Live**:
+2. Abra a tela **Ao vivo**:
    - 🟢 **ECG ao vivo** no canvas (graças ao `--mode hrv-ecg`);
    - **HR/RR** (gráficos) e **BPM/RR** atuais.
 
 > Com `--mode hrv` (sem ECG), o painel de ECG fica vazio; HR/RR continuam funcionando.
 
-> **Markers:** com a experiência iniciada, em **Session Control → Operate** digite um rótulo
-> (ou use um preset) e clique **Add marker**. Desde a Fase 5 o marker é uma anotação local
-> (`experience.marker`) e aparece na **Timeline**/**Report** mesmo **sem** um cliente Unreal.
+> **Markers:** com a experiência iniciada, em **Controle da sessão → Operação** digite um rótulo
+> (ou use um preset) e clique **Adicionar marker**. Enter também envia, sem diálogo de confirmação.
+> Sem um cliente Unreal o dashboard publica `experience.marker` direto; com Unreal conectado o marker vai
+> como comando `add-marker`. Nos dois casos ele aparece na **Timeline**/**Relatório**.
 
 ---
 
 ## 5. Encerrar
 
-Em **Session Control**, clique em **End experience**. Isso publica `experience.lifecycle ended` e abre o **Report** (que você pode exportar em JSON/CSV — já com `subject`/`capture` embutidos).
+Em **Controle da sessão**, clique em **Encerrar experiência**. Isso publica `experience.lifecycle ended` e abre o **Relatório** (que você pode exportar em JSON/CSV — já com `subject`/`capture` embutidos).
 
 ---
 
@@ -148,12 +149,12 @@ Aí, além do export pelo JSONL, o **driver grava o ECG bruto em arquivo** duran
 
 | Aba | Para quê |
 |---|---|
-| **Guia** | Guia de uso embutido: fluxo de 5 passos + o que cada aba faz (atalhos clicáveis) |
-| **Overview** | Saúde do sistema, sensores, eventos recentes |
-| **Live** | ECG ao vivo (canvas) + HR/RR |
-| **Subject** | Cadastro do sujeito + confundidores + consentimento |
-| **Recording** | Modo de gravação + seleção de sensores/sinais |
-| **Session Control** | Start/End experience, markers, timeline, Report/exports |
-| **Clients** | Clientes conectados ao hub |
-| **Topics** | Stream de eventos por tópico |
-| **Diagnostics** | Endpoint/token do hub |
+| **Guia de uso** | Guia de uso embutido: fluxo de 5 passos + o que cada aba faz (atalhos clicáveis) |
+| **Visão geral** | Saúde do sistema, sensores, eventos recentes |
+| **Ao vivo** | ECG ao vivo (canvas) + HR/RR |
+| **Sujeito** | Cadastro do sujeito + confundidores + consentimento |
+| **Gravação** | Modo de gravação + seleção de sensores/sinais |
+| **Controle da sessão** | Iniciar/encerrar, comandos, markers, timeline, sensores e relatório |
+| **Clientes** | Clientes conectados ao hub |
+| **Tópicos** | Stream de eventos por tópico |
+| **Diagnóstico** | Endpoint/token do hub |

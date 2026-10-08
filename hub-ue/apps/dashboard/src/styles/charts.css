@@ -1,0 +1,473 @@
+/* --------------------------------------------------------------------------
+   Gráfico biométrico (SVG)
+   -------------------------------------------------------------------------- */
+
+.biometric-chart-panel .panel-body {
+  padding: 0;
+}
+
+.biometric-chart-shell {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+
+.biometric-chart-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-high);
+  padding: 12px 16px;
+}
+
+.biometric-chart-toolbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.biometric-chart-toolbar select {
+  min-width: 210px;
+  min-height: 34px;
+  padding: 6px 10px;
+}
+
+.chart-note {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.legend-item::before {
+  content: "";
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.legend-item.bpm {
+  color: var(--ok);
+}
+
+.legend-item.rr {
+  color: var(--primary);
+}
+
+.legend-item.marker {
+  color: var(--warn);
+}
+
+.legend-item.pause {
+  color: var(--muted);
+}
+
+.biometric-chart {
+  display: block;
+  width: 100%;
+  min-height: 330px;
+  background: var(--surface);
+}
+
+.chart-frame {
+  fill: var(--chart-surface);
+  stroke: var(--line);
+}
+
+.chart-grid-line {
+  stroke: rgba(27, 35, 51, 0.08);
+  stroke-width: 1;
+}
+
+.chart-axis-label {
+  fill: var(--muted);
+  font-size: 10px;
+  font-family: var(--font-mono);
+}
+
+.chart-grid-line.horizontal {
+  stroke-dasharray: 4 6;
+}
+
+.chart-pause-marker line {
+  stroke: var(--warn-line);
+  stroke-dasharray: 3 5;
+  stroke-width: 1.2;
+}
+
+.chart-pause-marker text {
+  fill: var(--warn);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.chart-step-segment {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chart-step-segment.bpm,
+.chart-dot.bpm {
+  stroke: var(--ok);
+  fill: var(--ok);
+}
+
+.chart-step-segment.rrMs,
+.chart-dot.rrMs {
+  stroke: var(--primary);
+  fill: var(--primary);
+}
+
+.chart-step-segment.paused {
+  opacity: 0.45;
+  stroke-dasharray: 5 5;
+}
+
+.chart-dot.signal-poor {
+  fill: var(--on-primary);
+  stroke: var(--warn);
+  stroke-width: 2.2;
+}
+
+.chart-dot.phase-paused {
+  opacity: 0.55;
+}
+
+.chart-marker-group line {
+  stroke: var(--warn-line);
+  stroke-width: 1;
+}
+
+.chart-marker-group circle {
+  fill: var(--warn);
+  stroke: var(--warn);
+}
+
+.chart-marker-group rect {
+  fill: var(--warn-soft);
+  stroke: rgba(138, 93, 11, 0.75);
+}
+
+.chart-marker-group.cluster rect {
+  fill: rgba(138, 93, 11, 0.2);
+}
+
+.chart-marker-group text {
+  fill: var(--warn);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.chart-marker-group {
+  cursor: pointer;
+  outline: none;
+}
+
+.chart-marker-rail-entry {
+  outline: none;
+}
+
+.chart-marker-group.active rect,
+.chart-marker-group:focus-visible rect {
+  fill: rgba(138, 93, 11, 0.26);
+  stroke: var(--warn);
+  stroke-width: 1.4;
+}
+
+.chart-marker-group.active circle,
+.chart-marker-group:focus-visible circle {
+  stroke: var(--primary);
+  stroke-width: 2;
+}
+
+.chart-marker-expansion rect {
+  fill: rgba(255, 255, 255, 0.98);
+  stroke: var(--warn-line);
+}
+
+.chart-marker-expansion-item {
+  cursor: pointer;
+  outline: none;
+}
+
+.chart-marker-expansion-item rect {
+  fill: var(--warn-soft);
+  stroke: rgba(138, 93, 11, 0.42);
+}
+
+.chart-marker-expansion-item text {
+  fill: var(--warn);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.chart-marker-expansion-item.active rect,
+.chart-marker-expansion-item:focus-visible rect {
+  fill: rgba(138, 93, 11, 0.24);
+  stroke: var(--primary);
+}
+
+.chart-marker-popover line {
+  stroke: var(--warn-line);
+  stroke-width: 1;
+}
+
+.chart-marker-popover rect {
+  fill: var(--on-primary);
+  stroke: rgba(138, 93, 11, 0.8);
+  filter: drop-shadow(0 8px 16px rgba(20, 32, 58, 0.18));
+}
+
+.chart-marker-popover text {
+  font-family: var(--font-mono);
+}
+
+.chart-marker-popover-title {
+  fill: var(--warn);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.chart-marker-popover-item text {
+  font-size: 10px;
+}
+
+.chart-marker-popover-meta {
+  fill: var(--primary);
+  font-weight: 700;
+}
+
+.chart-marker-popover-label {
+  fill: var(--text);
+  font-weight: 700;
+}
+
+.chart-marker-popover-summary {
+  fill: var(--muted);
+  font-weight: 500;
+}
+
+.chart-marker-popover-overflow {
+  fill: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.marker-callouts {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-high);
+  padding: 12px 16px;
+}
+
+.marker-callouts-header,
+.marker-callout-group-title,
+.marker-callout-row {
+  display: grid;
+  align-items: center;
+  min-width: 0;
+}
+
+.marker-callouts-header {
+  grid-template-columns: minmax(0, 1fr) auto;
+  color: var(--warn);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.marker-callouts-header span:last-child {
+  color: var(--muted);
+}
+
+.marker-callout-list {
+  display: grid;
+  gap: 8px;
+}
+
+.marker-callout-group {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(138, 93, 11, 0.3);
+  background: var(--warn-soft);
+  border-radius: var(--radius-control);
+  padding: 8px;
+}
+
+.marker-callout-group-title {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  color: var(--warn);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.marker-callout-group-title span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.marker-callout-row {
+  grid-template-columns: 78px minmax(140px, 1fr) minmax(88px, 0.4fr) minmax(180px, 0.8fr);
+  gap: 10px;
+  border-top: 1px solid rgba(138, 93, 11, 0.2);
+  color: var(--text);
+  font-size: 12px;
+  padding-top: 6px;
+}
+
+.marker-callout-row strong,
+.marker-callout-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.marker-callout-row strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.chart-axis-label.lane-title {
+  fill: var(--text);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.biometric-chart-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-high);
+  padding: 12px 16px;
+}
+
+.biometric-chart-stats span {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--radius-chip);
+  color: var(--text);
+  padding: 6px 9px;
+  font-size: 12px;
+}
+
+.export-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface-high);
+  border-radius: var(--radius-control);
+  padding: 6px;
+}
+
+.observation-strip {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--warn-line);
+  background: var(--warn-soft);
+  border-radius: var(--radius-control);
+  padding: 12px 14px;
+  min-width: 0;
+}
+
+.observation-strip strong {
+  color: var(--warn);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.observation-strip span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Macro commands */
+.macro-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.macro-button {
+  min-height: 92px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 16px 12px;
+}
+
+.macro-button.primary {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.macro-button.primary:not(:disabled):hover {
+  background: var(--primary-strong);
+}
+
+.macro-button.coming-soon small {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.macro-grid .coming-soon {
+  grid-column: 1 / -1;
+  min-height: 76px;
+  margin-top: 2px;
+}
+

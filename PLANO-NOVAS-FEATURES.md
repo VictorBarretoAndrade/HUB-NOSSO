@@ -18,7 +18,7 @@ Companheiro de leitura: [GUIA-PROJETO.md](GUIA-PROJETO.md) (como o sistema funci
 | # | Descoberta | Impacto |
 |---|---|---|
 | A | **O "record mode" do driver não existe de fato.** [config.yaml](polarh10_driver/config/config.yaml) declara `mode`, `recording.*` e `stream.send_*`, mas [main.py](polarh10_driver/main.py) só faz *stream + gateway*. O endpoint `/control` que a ponte chama **não existe**. | A exigência ② é majoritariamente **Python green-field**, não UI. |
-| B | **O navegador não retém dado massivo.** [experiencePersistence.ts](hub-ue/apps/dashboard/src/experiencePersistence.ts) (`sanitizeHrvPayload`) descarta `ecg[]` e `ibiMs[]`; `events` é limitado a 200 e `experienceEvents` a 5000. | A exigência ④ (ECG bruto em `.npy`/`.mat`) **tem que ser server-side**. |
+| B | **O navegador não retém dado massivo.** [experiencePersistence.ts](hub-ue/apps/dashboard/src/domain/experiencePersistence.ts) (`sanitizeHrvPayload`) descarta `ecg[]` e `ibiMs[]`; `events` é limitado a 200 e `experienceEvents` a 5000. | A exigência ④ (ECG bruto em `.npy`/`.mat`) **tem que ser server-side**. |
 | C | **O dado bruto completo já está no servidor.** O hub grava todo envelope em `data/sessions/<sessionId>.jsonl` ([session_log.py](hub-ue/apps/hub/src/biofeedback_hub/core/session_log.py)). | É a fonte natural para gerar `.npy`/`.mat`. |
 
 ---
@@ -50,23 +50,23 @@ flowchart LR
     REC -. fonte do dado massivo .-> EXP
 ```
 
-O perfil do sujeito (①) e a config de captura (②) precisam **viajar junto com o dado** até a exportação (④). Hoje o envelope de export ([experienceReport.ts](hub-ue/apps/dashboard/src/experienceReport.ts), `ReportExportEnvelopeV1`) **não tem** campo de sujeito nem de captura — é o primeiro ponto a estender.
+O perfil do sujeito (①) e a config de captura (②) precisam **viajar junto com o dado** até a exportação (④). Hoje o envelope de export ([experienceReport.ts](hub-ue/apps/dashboard/src/domain/experienceReport.ts), `ReportExportEnvelopeV1`) **não tem** campo de sujeito nem de captura — é o primeiro ponto a estender.
 
 ---
 
 ## ① Cadastro da pessoa + questionário de confundidores
 
-**Já existe:** nenhum conceito de sujeito. Mas há um molde de persistência versionada em [experiencePersistence.ts](hub-ue/apps/dashboard/src/experiencePersistence.ts) e um molde de formulário (marker form) em [App.tsx](hub-ue/apps/dashboard/src/App.tsx).
+**Já existe:** nenhum conceito de sujeito. Mas há um molde de persistência versionada em [experiencePersistence.ts](hub-ue/apps/dashboard/src/domain/experiencePersistence.ts) e um molde de formulário (marker form) em [App.tsx](hub-ue/apps/dashboard/src/app/App.tsx).
 
 **Campos sugeridos:**
 - *Basais:* `subjectId` (pseudônimo), idade, sexo biológico, altura, peso, lateralidade, posição de medição (sentado/deitado).
 - *Confundidores de HRV* (bem documentados na literatura): cafeína (h desde última dose), nicotina, álcool (24h), horas de sono, exercício recente, refeição recente, medicação (ex.: β-bloqueador), nível de estresse, condições cardíacas (arritmia), fatores respiratórios/hormonais quando aplicável.
 
 **Tarefas:**
-- [ ] `apps/dashboard/src/subjectProfile.ts`: tipos + persistência em `localStorage` espelhando `experiencePersistence.ts` (versão de schema, validação, load/save/clear).
-- [ ] Tela "Subject" em `NAV_ITEMS` ([App.tsx](hub-ue/apps/dashboard/src/App.tsx)) **ou** modal obrigatório antes de **Start experience** (reusar o gating `canDispatch...`).
-- [ ] Anexar snapshot do perfil em `startExperienceRun` ([experienceRun.ts](hub-ue/apps/dashboard/src/experienceRun.ts)).
-- [ ] Adicionar `subject` ao `ReportExportEnvelopeV1` ([experienceReport.ts](hub-ue/apps/dashboard/src/experienceReport.ts)) — subir `schemaVersion` para 2 (ou campo opcional).
+- [ ] `apps/dashboard/src/domain/subjectProfile.ts`: tipos + persistência em `localStorage` espelhando `experiencePersistence.ts` (versão de schema, validação, load/save/clear).
+- [ ] Tela "Subject" em `NAV_ITEMS` ([App.tsx](hub-ue/apps/dashboard/src/app/App.tsx)) **ou** modal obrigatório antes de **Start experience** (reusar o gating `canDispatch...`).
+- [ ] Anexar snapshot do perfil em `startExperienceRun` ([experienceRun.ts](hub-ue/apps/dashboard/src/domain/experienceRun.ts)).
+- [ ] Adicionar `subject` ao `ReportExportEnvelopeV1` ([experienceReport.ts](hub-ue/apps/dashboard/src/domain/experienceReport.ts)) — subir `schemaVersion` para 2 (ou campo opcional).
 - [ ] Incluir snapshot no `payload` de `experience.lifecycle` `started` para o log do servidor capturar; documentar em [docs/protocol.md](hub-ue/docs/protocol.md).
 - [ ] Testes (seguir o padrão `*.test.ts` existente).
 
@@ -122,7 +122,7 @@ sequenceDiagram
 ## ③ Visualização de dados ao vivo
 
 **Já existe:**
-- Hub dashboard: só a **tabela** "Live sensor data" e o **gráfico SVG no Report** (pós-experiência) — `BiometricTimelineChart`/`buildBiometricChartModel` em [experienceAnalytics.ts](hub-ue/apps/dashboard/src/experienceAnalytics.ts) e [App.tsx:1695](hub-ue/apps/dashboard/src/App.tsx#L1695). O código diz *"Aggregated trend view; exports keep raw samples"*.
+- Hub dashboard: só a **tabela** "Live sensor data" e o **gráfico SVG no Report** (pós-experiência) — `BiometricTimelineChart`/`buildBiometricChartModel` em [experienceAnalytics.ts](hub-ue/apps/dashboard/src/domain/experienceAnalytics.ts) e [App.tsx:1695](hub-ue/apps/dashboard/src/app/App.tsx#L1695). O código diz *"Aggregated trend view; exports keep raw samples"*.
 - Waveform ECG ao vivo existe **só na página do driver** (Chart.js em `:8765`).
 - O WS monitor já entrega eventos em tempo real; os eventos **vivos** ainda contêm o `ecg[]` (antes de sanitizar).
 
@@ -138,7 +138,7 @@ sequenceDiagram
 
 ## ④ Janela de salvamento com `.npy` / `.mat`
 
-**Já existe:** exports JSON/CSV via `downloadTextFile` ([App.tsx](hub-ue/apps/dashboard/src/App.tsx)), a partir de buffers do browser (limitados e sem ECG bruto). Nada binário.
+**Já existe:** exports JSON/CSV via `downloadTextFile` ([App.tsx](hub-ue/apps/dashboard/src/app/App.tsx)), a partir de buffers do browser (limitados e sem ECG bruto). Nada binário.
 
 **Decisão de arquitetura:** `.npy`/`.mat` de **dado massivo (ECG)** = **server-side**. Porque (a) o navegador descarta o ECG e limita o buffer, e (b) `.npy`/`.mat` numéricos pedem **numpy/scipy** — que o **driver já tem** ([requirements.txt](polarh10_driver/requirements.txt)) e o **hub não** (só fastapi/pydantic/uvicorn/websockets, ver [pyproject.toml](hub-ue/apps/hub/pyproject.toml)).
 
@@ -199,7 +199,7 @@ Esta seção descreve **como eu desenharia** as features dentro da arquitetura a
 | **Contrato por tópico** | Features novas entram como **tópicos/payloads** no envelope existente, não como endpoints ad-hoc. Mantém o hub agnóstico ([protocol.md](hub-ue/docs/protocol.md)). |
 | **Servidor é a fonte da verdade do dado bruto** | O browser é uma **janela de operação**, não o sistema de registro. ECG bruto vive no driver/JSONL; o dashboard só amostra. |
 | **Separar captura × gravação × visualização × exportação** | São 4 responsabilidades distintas: *configurar* (CaptureProfile), *executar* (Recorder), *observar* (LiveView), *materializar* (ExportJob). Cada uma evolui sozinha. |
-| **Schema versionado e retrocompatível** | Todo artefato persistido/exportado carrega `schemaVersion`. Já é o padrão ([experiencePersistence.ts](hub-ue/apps/dashboard/src/experiencePersistence.ts), `ReportExportEnvelopeV1`). |
+| **Schema versionado e retrocompatível** | Todo artefato persistido/exportado carrega `schemaVersion`. Já é o padrão ([experiencePersistence.ts](hub-ue/apps/dashboard/src/domain/experiencePersistence.ts), `ReportExportEnvelopeV1`). |
 | **Privacidade by design** | Sujeito = pseudônimo; dado pessoal nunca no git; consentimento explícito (LGPD). |
 
 ### Modelo conceitual de domínio
@@ -392,14 +392,14 @@ Os contratos, esqueletos, specs de teste e documentação de apoio **já existem
 (sem lógica de feature — apenas a fundação para acelerar a implementação):
 
 **Contratos + stubs (dashboard, TS):**
-- [subjectProfile.ts](hub-ue/apps/dashboard/src/subjectProfile.ts) — tipos do sujeito + persistência + validação.
-- [captureProfile.ts](hub-ue/apps/dashboard/src/captureProfile.ts) — `CaptureProfile` + builders + payload de lifecycle.
-- [exportFormats.ts](hub-ue/apps/dashboard/src/exportFormats.ts) — `ExportJob`, regra client/server, **encoder `.npy` já funcional**, `buildExportEnvelopeV2`.
-- **Fundação implementada (Fase 0):** o export do Report ([experienceReport.ts](hub-ue/apps/dashboard/src/experienceReport.ts)) embute `subject`/`capture` opcionais (retrocompatível, `schemaVersion` 1 mantido).
-- **Fase 1 (Sujeito) iniciada:** tela [SubjectView.tsx](hub-ue/apps/dashboard/src/SubjectView.tsx) (cadastro + confundidores + consentimento) ligada ao [App.tsx](hub-ue/apps/dashboard/src/App.tsx); perfil persistido em `localStorage` e anexado ao `experience.lifecycle started` e ao export do Report.
-- **Fase 2 (Gravação) iniciada:** driver com `/control` ([websocket_gateway.py](polarh10_driver/core/websocket_gateway.py), [...dashboard.py](polarh10_driver/core/websocket_gateway_dashboard.py)) + `Recorder` funcional ([recorder.py](polarh10_driver/core/recorder.py), grava CSV + NPY) acionado por [control.py](polarh10_driver/core/control.py); `mode` lido no [main.py](polarh10_driver/main.py). Dashboard com tela [RecordingModeView.tsx](hub-ue/apps/dashboard/src/RecordingModeView.tsx); `CaptureProfile` persistido e publicado no `experience.lifecycle started`. CI valida driver (Recorder/control) + dashboard.
+- [subjectProfile.ts](hub-ue/apps/dashboard/src/domain/subjectProfile.ts) — tipos do sujeito + persistência + validação.
+- [captureProfile.ts](hub-ue/apps/dashboard/src/domain/captureProfile.ts) — `CaptureProfile` + builders + payload de lifecycle.
+- [exportFormats.ts](hub-ue/apps/dashboard/src/domain/exportFormats.ts) — `ExportJob`, regra client/server, **encoder `.npy` já funcional**, `buildExportEnvelopeV2`.
+- **Fundação implementada (Fase 0):** o export do Report ([experienceReport.ts](hub-ue/apps/dashboard/src/domain/experienceReport.ts)) embute `subject`/`capture` opcionais (retrocompatível, `schemaVersion` 1 mantido).
+- **Fase 1 (Sujeito) iniciada:** tela [SubjectView.tsx](hub-ue/apps/dashboard/src/features/subject/SubjectView.tsx) (cadastro + confundidores + consentimento) ligada ao [App.tsx](hub-ue/apps/dashboard/src/app/App.tsx); perfil persistido em `localStorage` e anexado ao `experience.lifecycle started` e ao export do Report.
+- **Fase 2 (Gravação) iniciada:** driver com `/control` ([websocket_gateway.py](polarh10_driver/core/websocket_gateway.py), [...dashboard.py](polarh10_driver/core/websocket_gateway_dashboard.py)) + `Recorder` funcional ([recorder.py](polarh10_driver/core/recorder.py), grava CSV + NPY) acionado por [control.py](polarh10_driver/core/control.py); `mode` lido no [main.py](polarh10_driver/main.py). Dashboard com tela [RecordingModeView.tsx](hub-ue/apps/dashboard/src/features/recording/RecordingModeView.tsx); `CaptureProfile` persistido e publicado no `experience.lifecycle started`. CI valida driver (Recorder/control) + dashboard.
 - **Fase 3 (Export massivo) iniciada:** [export_cli.py](polarh10_driver/tools/export_cli.py) extrai ECG/RR/HR do JSONL do hub, gera `.npy`/`.mat` (scipy) e um sidecar `.meta.json` com **sujeito + captura + run** (lidos do `experience.lifecycle started` no log). CI roda os testes com numpy+scipy.
-- **Fase 4 (Live view) iniciada:** lógica pura testável em [liveSignal.ts](hub-ue/apps/dashboard/src/liveSignal.ts) (janelas de ECG, séries HR/RR, decimação) + componente [LiveView.tsx](hub-ue/apps/dashboard/src/LiveView.tsx) (ECG em `<canvas>`, HR/RR em SVG). Aba "Live" no [App.tsx](hub-ue/apps/dashboard/src/App.tsx), alimentada pelos eventos vivos. **Fecha as 4 exigências.**
+- **Fase 4 (Live view) iniciada:** lógica pura testável em [liveSignal.ts](hub-ue/apps/dashboard/src/domain/liveSignal.ts) (janelas de ECG, séries HR/RR, decimação) + componente [LiveView.tsx](hub-ue/apps/dashboard/src/features/live/LiveView.tsx) (ECG em `<canvas>`, HR/RR em SVG). Aba "Live" no [App.tsx](hub-ue/apps/dashboard/src/app/App.tsx), alimentada pelos eventos vivos. **Fecha as 4 exigências.**
 - Specs Vitest: `subjectProfile.test.ts`, `captureProfile.test.ts`, `exportFormats.test.ts` (verdes; `it.todo` no que falta).
 
 **Contrato (hub, Python):**
@@ -426,6 +426,6 @@ Os contratos, esqueletos, specs de teste e documentação de apoio **já existem
 
 - [polarh10_driver/main.py](polarh10_driver/main.py) · [config.yaml](polarh10_driver/config/config.yaml) · [websocket_gateway.py](polarh10_driver/core/websocket_gateway.py) · [requirements.txt](polarh10_driver/requirements.txt)
 - [hub-ue/apps/hub/.../polarh10_client.py](hub-ue/apps/hub/src/biofeedback_hub/tools/polarh10_client.py) · [session_log.py](hub-ue/apps/hub/src/biofeedback_hub/core/session_log.py) · [pyproject.toml](hub-ue/apps/hub/pyproject.toml)
-- [hub-ue/apps/dashboard/src/App.tsx](hub-ue/apps/dashboard/src/App.tsx) · [experiencePersistence.ts](hub-ue/apps/dashboard/src/experiencePersistence.ts) · [experienceReport.ts](hub-ue/apps/dashboard/src/experienceReport.ts) · [experienceAnalytics.ts](hub-ue/apps/dashboard/src/experienceAnalytics.ts) · [experienceRun.ts](hub-ue/apps/dashboard/src/experienceRun.ts) · [sensorTelemetry.ts](hub-ue/apps/dashboard/src/sensorTelemetry.ts)
+- [hub-ue/apps/dashboard/src/app/App.tsx](hub-ue/apps/dashboard/src/app/App.tsx) · [experiencePersistence.ts](hub-ue/apps/dashboard/src/domain/experiencePersistence.ts) · [experienceReport.ts](hub-ue/apps/dashboard/src/domain/experienceReport.ts) · [experienceAnalytics.ts](hub-ue/apps/dashboard/src/domain/experienceAnalytics.ts) · [experienceRun.ts](hub-ue/apps/dashboard/src/domain/experienceRun.ts) · [sensorTelemetry.ts](hub-ue/apps/dashboard/src/domain/sensorTelemetry.ts)
 - [hub-ue/docs/protocol.md](hub-ue/docs/protocol.md)
 </content>

@@ -1,0 +1,121 @@
+/* --------------------------------------------------------------------------
+   Modal de confirmação
+   -------------------------------------------------------------------------- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: rgba(20, 32, 58, 0.32);
+  backdrop-filter: blur(2px);
+  padding: 24px;
+}
+
+.confirm-dialog {
+  width: min(460px, 100%);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+}
+
+.confirm-dialog header {
+  display: grid;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-high);
+  padding: 16px;
+}
+
+.confirm-dialog header span,
+.confirm-dialog dt {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.confirm-dialog header strong {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.confirm-dialog p {
+  margin: 0;
+  padding: 16px;
+  color: var(--text);
+}
+
+.confirm-dialog dl {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 10px 14px;
+  margin: 0 16px 16px;
+  border: 1px solid var(--line);
+  background: var(--surface-high);
+  border-radius: var(--radius-control);
+  padding: 12px;
+}
+
+.confirm-dialog dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  padding: 12px 16px;
+}
+
+.recipient-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface-high);
+  border-radius: var(--radius-control);
+  padding: 12px;
+}
+
+.recipient-list-title {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.recipient-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.recipient-item div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.recipient-item strong,
+.recipient-item span {
+  overflow-wrap: anywhere;
+}
+
+.recipient-item div span {
+  color: var(--muted);
+  font-size: 12px;
+}
+

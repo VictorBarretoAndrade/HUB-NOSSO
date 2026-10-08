@@ -1,0 +1,144 @@
+/* --------------------------------------------------------------------------
+   Formulários
+   -------------------------------------------------------------------------- */
+
+.form-block {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.marker-panel .form-block {
+  margin-top: 0;
+}
+
+.preset-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface-high);
+  border-radius: var(--radius-control);
+  padding: 8px;
+}
+
+.preset-chip-row span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.preset-chip {
+  min-height: 28px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  border-radius: var(--radius-chip);
+  color: var(--primary);
+  padding: 0 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.preset-chip:hover,
+.preset-chip.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.form-block label,
+.field-label {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  border-radius: var(--radius-control);
+  color: var(--text);
+  padding: 10px 12px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+textarea {
+  min-height: 86px;
+  resize: vertical;
+}
+
+.subject-grid {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  align-items: start;
+}
+
+.checkbox-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.checkbox-line input[type="checkbox"],
+.checkbox-line input[type="radio"],
+.data-table input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  accent-color: var(--primary);
+}
+
+.choice-group {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.choice-group legend {
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.checkbox-line > span {
+  display: grid;
+  gap: 2px;
+}
+
+.choice-hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+input[aria-invalid="true"] {
+  border-color: var(--error);
+}
+
+/* Rótulos de checkbox/radio são texto corrido, não micro-rótulos de campo. */
+.form-block .checkbox-line {
+  font-size: 13px;
+  font-weight: 400;
+}

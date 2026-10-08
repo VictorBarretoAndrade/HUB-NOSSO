@@ -1,0 +1,93 @@
+/* --------------------------------------------------------------------------
+   Tabelas
+   -------------------------------------------------------------------------- */
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.data-table th,
+.data-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 11px 14px;
+  text-align: left;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.data-table th {
+  color: var(--muted);
+  background: var(--surface-high);
+  font-size: 11px;
+}
+
+.data-table tbody tr:hover {
+  background: var(--surface-high);
+}
+
+.data-table tr.selected {
+  background: var(--primary-soft);
+}
+
+.subtle-line {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.sensor-list-table td {
+  white-space: nowrap;
+}
+
+.sensor-list-table td:first-child {
+  min-width: 220px;
+  white-space: normal;
+}
+
+/* Cabeçalhos de linha (th scope="row") têm aparência de célula comum. */
+.data-table tbody th {
+  background: transparent;
+  color: var(--text);
+  font-size: inherit;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.data-table tbody tr[class] {
+  cursor: default;
+}
+
+.data-table tbody tr:has(.row-select) {
+  cursor: pointer;
+}
+
+.warn-row {
+  background: var(--warn-soft);
+}
+
+.error-row {
+  background: var(--error-soft);
+}
+
+.empty-row {
+  color: var(--muted);
+  text-align: center !important;
+  padding: 28px !important;
+}
+
+/*
+ * Dentro de .table-scroll a tabela pode ser mais larga que o cartão: cabeçalhos não
+ * quebram e as palavras ficam inteiras; quem rola é o contêiner, não a página.
+ */
+.table-scroll .data-table th {
+  white-space: nowrap;
+}
+
+.table-scroll .data-table td {
+  overflow-wrap: break-word;
+  word-break: normal;
+}

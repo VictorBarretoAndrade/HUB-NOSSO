@@ -243,20 +243,20 @@ flowchart LR
     LIFE -->|"publish experience.lifecycle"| HUB
 ```
 
-O que cada canal alimenta (ver [api.ts](hub-ue/apps/dashboard/src/api.ts) e [App.tsx](hub-ue/apps/dashboard/src/App.tsx)):
+O que cada canal alimenta (ver [api.ts](hub-ue/apps/dashboard/src/domain/api.ts) e [App.tsx](hub-ue/apps/dashboard/src/app/App.tsx)):
 
 | # | Canal | Implementação | Alimenta na UI |
 |---|---|---|---|
 | ① | **Poll HTTP** a cada 3s | `fetchHealth` + `fetchStatus` | "System readiness", contagem de clientes, ACKs pendentes, lista de Clients |
 | ② | **WS monitor** (longo) | `buildHello` + `buildMonitorSubscribe` | Tudo que é stream ao vivo: aba Topics, "Live sensor data", "Sensor readiness", timeline |
-| ③ | **WS comando** (curto, por clique) | `publishUnrealCommand` | Botões Pause/Resume/Add marker → espera ACK (timeout 5s) |
-| ④ | **WS lifecycle** (curto, por clique) | `publishLifecycleEvent` | Botões Start/End experience |
+| ③ | **WS comando** (curto, por clique) | `publishUnrealCommand` | Botões Pausar/Retomar/Adicionar marker → espera ACK (timeout 5s) |
+| ④ | **WS lifecycle** (curto, por clique) | `publishLifecycleEvent` | Botões Iniciar/Encerrar experiência |
 
-> O endpoint do hub fica salvo no `localStorage` e pode ser trocado na aba **Diagnostics** (padrão `http://127.0.0.1:8787`). O dashboard também **assina dinamicamente** tópicos novos de sensores que aparecem no `/status` (ex.: `imu.accelerometer.raw`).
+> O endpoint do hub fica salvo no `localStorage` e pode ser trocado na tela **Diagnóstico** (padrão `http://127.0.0.1:8787`). O dashboard também **assina dinamicamente** tópicos novos de sensores que aparecem no `/status` (ex.: `imu.accelerometer.raw`).
 
 ### 4.1. Do `hrv.raw` ao card de sensor
 
-Quando a ponte publica `hrv.raw`, o evento chega pelo canal ② e passa por duas funções de [sensorTelemetry.ts](hub-ue/apps/dashboard/src/sensorTelemetry.ts):
+Quando a ponte publica `hrv.raw`, o evento chega pelo canal ② e passa por duas funções de [sensorTelemetry.ts](hub-ue/apps/dashboard/src/domain/sensorTelemetry.ts):
 
 ```mermaid
 flowchart TB
@@ -278,68 +278,60 @@ stateDiagram-v2
     stale --> streaming: nova amostra chega
     poor --> streaming: sinal recupera
 
-    note right of streaming: 🟢 "Streaming"
-    note right of stale: 🟡 "Stale"
-    note right of poor: 🔴 "Poor signal"
-    note right of unknown: ⚪ "No samples yet"
+    note right of streaming: 🟢 "Transmitindo"
+    note right of stale: 🟡 "Sem atualização"
+    note right of poor: 🔴 "Sinal ruim"
+    note right of unknown: ⚪ "Sem amostras"
 ```
 
-### 4.2. System readiness (como cada célula é decidida)
+### 4.2. Prontidão do sistema (como cada célula é decidida)
 
-A faixa "System readiness" do Overview vem de `deriveReadiness` em [domain.ts](hub-ue/apps/dashboard/src/domain.ts), usando os dados do **poll HTTP**:
+A faixa "Prontidão do sistema" da Visão geral vem de `deriveReadiness` em [hubStatus.ts](hub-ue/apps/dashboard/src/domain/hubStatus.ts), usando os dados do **poll HTTP**:
 
-| Célula | Verde (ready) quando… | Senão |
+| Célula | Verde (pronto) quando… | Senão |
 |---|---|---|
 | **Hub** | `/health` respondeu `ok` | 🔴 Offline |
-| **Unreal / Quest** | há cliente com `role=unreal` | 🟡 Missing |
-| **Sensors** | há cliente com `role=sensor` (ex.: a ponte Polar) | 🟡 Waiting |
-| **ACKs** | nenhum ACK pendente | 🟡 N pending |
+| **Unreal / Quest** | há cliente com `role=unreal` | 🟡 Ausente |
+| **Sensores** | há cliente com `role=sensor` (ex.: a ponte Polar) ou sensor gerenciado | 🟡 Aguardando |
+| **ACKs** | nenhum ACK pendente | 🟡 N pendentes |
 | **Logs** | há cliente `role=logger` | ⚪ Local |
 
-### 4.3. As 5 telas do dashboard
+### 4.3. As telas do dashboard
+
+O menu lateral é agrupado na ordem de uma sessão: preparar, operar, monitorar.
 
 ```mermaid
 flowchart LR
-    subgraph NAV["Navegação (sidebar)"]
+    subgraph NAV["Navegação (menu lateral)"]
         direction TB
-        O["Overview"]
-        S["Session Control"]
-        C["Clients"]
-        T["Topics"]
-        D["Diagnostics"]
+        O["Visão geral"]
+        SU["Sujeito"]
+        G["Gravação"]
+        S["Controle da sessão"]
+        L["Ao vivo"]
+        C["Clientes"]
+        T["Tópicos"]
+        D["Diagnóstico"]
+        H["Guia de uso"]
     end
-    O --> O1["readiness · métricas · Sensor readiness<br/>· Recent events · Live sensor data"]
-    S --> S1["Experience header + abas:<br/>Operate · Timeline · Sensors · History · Report"]
-    C --> C1["lista de clientes por role<br/>+ detalhe/telemetria do sensor"]
-    T --> T1["stream ao vivo de eventos<br/>(canal WS monitor) com filtro"]
-    D --> D1["endpoint + token do hub<br/>health/status crus"]
+    O --> O1["prontidão · métricas · prontidão do sensor<br/>· eventos recentes · dados dos sensores ao vivo"]
+    SU --> SU1["cadastro pseudônimo · fatores que afetam a HRV<br/>· consentimento"]
+    G --> G1["modo (só transmitir · gravar · híbrido)<br/>+ sinais por sensor"]
+    S --> S1["cabeçalho da experiência + abas:<br/>Operação · Timeline · Sensores · Histórico · Relatório"]
+    L --> L1["waveform de ECG + tendências de HR e RR"]
+    C --> C1["clientes por papel<br/>+ detalhe/telemetria do sensor"]
+    T --> T1["stream ao vivo de eventos<br/>com filtro, pausa e inspeção de payload"]
+    D --> D1["endereço + token do hub<br/>saúde, status e exportação de diagnóstico"]
+    H --> H1["passo a passo de uma sessão<br/>+ legenda dos selos"]
 ```
 
-Layout aproximado da tela **Overview** (onde o Polar aparece):
+O topo de todas as telas mostra o estado do hub e do stream. Se a conexão cai, um aviso com
+"Tentar agora" aparece em qualquer tela e a reconexão é automática.
 
-```text
-┌──────────────┬─────────────────────────────────────────────────────────┐
-│ Biofeedback  │  Overview                       [● Connected] session-... │
-│ Hub          ├─────────────────────────────────────────────────────────┤
-│              │  System readiness                                        │
-│ ▸ Overview   │  [Session][Hub ✓][Unreal ⚠][Sensors ✓][ACKs ✓][Logs ⚪] │
-│   Session    │  Clients: 2   Pending ACKs: 0   Topics: 6   Marker: --   │
-│   Clients    │  ┌── Sensor readiness ───────────────────────────────┐   │
-│   Topics     │  │ Polar H10 Lab Strap        [🟢 Streaming]         │   │
-│   Diagnostics│  │ Sensors 1   BPM 73   RR 821 ms   Last sample: now │   │
-│              │  └───────────────────────────────────────────────────┘   │
-│              │  Required actions          Recent events                 │
-│              │  ┌─────────────────┐       ┌───────────────────────────┐ │
-│              │  │ • ...            │       │ hrv.raw  polar-h10  bpm73 │ │
-│              │  └─────────────────┘       └───────────────────────────┘ │
-│              │  Live sensor data                        [Save JSON]     │
-│              │  Time     Device         Topic    Measurement   Payload  │
-│              │  12:00:01 Polar H10 Lab  hrv.raw  73 BPM/821ms  bpm:73.. │
-│              │  12:00:00 Polar H10 Lab  hrv.raw  72 BPM/833ms  bpm:72.. │
-└──────────────┴─────────────────────────────────────────────────────────┘
-```
+> Com vários sensores, o seletor **"Exibindo"** no card *Prontidão do sensor* alterna entre eles. A tabela *Dados dos sensores ao vivo* aceita qualquer dispositivo WebSocket com tópico/payload de sensor, não só o Polar.
 
-> Com vários sensores, o seletor **"Viewing"** no card *Sensor readiness* alterna entre eles. A tabela *Live sensor data* aceita qualquer dispositivo WebSocket com tópico/payload de sensor, não só o Polar.
+A organização do código do dashboard (pastas `app`, `features`, `components`, `domain`, `styles`) está em
+[hub-ue/apps/dashboard/README.md](hub-ue/apps/dashboard/README.md).
 
 ---
 
@@ -373,7 +365,7 @@ cd hub-ue
 .\.venv\Scripts\biofeedback-sim --mode hrv
 ```
 
-No dashboard, o card *Sensor readiness* deve mostrar o sensor simulado em 🟢 Streaming. Atalho que sobe tudo junto (hub na porta 8788): `npm run dev:demo` (parar: `npm run dev:demo:stop`).
+No dashboard, o card *Prontidão do sensor* deve mostrar o sensor simulado em 🟢 Transmitindo. Atalho que sobe tudo junto (hub na porta 8788): `npm run dev:demo` (parar: `npm run dev:demo:stop`).
 
 ---
 
@@ -457,8 +449,8 @@ O HRV real do Polar aparece em *Sensor readiness* e *Live sensor data*.
 | `Polar device not found` | Endereço errado em `config.yaml`, sensor desligado ou eletrodos secos. Reescaneie (Passo 2). |
 | Ponte fica tentando `/control` | Adicione `--disable-recording-control` (o driver atual não tem esse endpoint). |
 | Dashboard sem dados | Confira a ordem (hub **antes** da ponte). Veja `http://127.0.0.1:8787/status` ou rode `biofeedback-status`. |
-| Sensor aparece 🟡 *Stale* | Sem amostra há >5 s — o driver parou de enviar ou o Polar perdeu contato. |
-| Sensor aparece 🔴 *Poor signal* | `hrStatus < 0` — contato ruim da cinta/eletrodos. |
+| Sensor aparece 🟡 *Sem atualização* | Sem amostra há >5 s — o driver parou de enviar ou o Polar perdeu contato. |
+| Sensor aparece 🔴 *Sinal ruim* | `hrStatus < 0` — contato ruim da cinta/eletrodos. |
 | `venv_setup.sh` não roda no Windows | É script bash; use os comandos PowerShell das seções 5–6. |
 | Faltam `fastapi`/`uvicorn` | Rode `python -m pip install -e apps\hub` dentro de `hub-ue`. |
 
@@ -470,8 +462,8 @@ O HRV real do Polar aparece em *Sensor readiness* e *Live sensor data*.
 - [hub-ue/docs/architecture.md](hub-ue/docs/architecture.md) — arquitetura do hub.
 - [hub-ue/docs/protocol.md](hub-ue/docs/protocol.md) — envelope, tópicos e ACK.
 - [hub-ue/docs/websocket-device-integration.md](hub-ue/docs/websocket-device-integration.md) — contrato `hrv.raw` para qualquer dispositivo.
-- [hub-ue/apps/dashboard/README.md](hub-ue/apps/dashboard/README.md) — Session Control, Report e exports.
+- [hub-ue/apps/dashboard/README.md](hub-ue/apps/dashboard/README.md) — organização do código, telas e exportações do dashboard.
 - [polarh10_driver/README.md](polarh10_driver/README.md) — stream e métricas do Polar.
 - [hub-ue/apps/hub/src/biofeedback_hub/tools/polarh10_client.py](hub-ue/apps/hub/src/biofeedback_hub/tools/polarh10_client.py) — código da ponte.
-- [hub-ue/apps/dashboard/src/sensorTelemetry.ts](hub-ue/apps/dashboard/src/sensorTelemetry.ts) — como o dashboard interpreta os sensores.
+- [hub-ue/apps/dashboard/src/domain/sensorTelemetry.ts](hub-ue/apps/dashboard/src/domain/sensorTelemetry.ts) — como o dashboard interpreta os sensores.
 </content>

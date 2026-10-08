@@ -1,0 +1,247 @@
+/* --------------------------------------------------------------------------
+   Guia de uso
+   -------------------------------------------------------------------------- */
+
+.guide-hero {
+  display: grid;
+  gap: 12px;
+  background: linear-gradient(180deg, var(--primary-soft), var(--surface));
+}
+
+.guide-hero h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.guide-lead {
+  margin: 0;
+  max-width: 78ch;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.guide-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.guide-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 16px;
+}
+
+.guide-step {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-high);
+  border-radius: var(--radius-control);
+  padding: 16px;
+}
+
+.guide-step-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.guide-step-index {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.guide-step-icon {
+  color: var(--primary);
+}
+
+.guide-step h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.guide-step-lead {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.guide-point-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.guide-point-list li {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 8px;
+  align-items: start;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.guide-point-icon {
+  color: var(--ok);
+  margin-top: 2px;
+}
+
+.guide-step .mini-button {
+  justify-self: start;
+}
+
+/* Lista de abas */
+.guide-tab-list {
+  display: grid;
+  gap: 8px;
+}
+
+.guide-tab-row {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--radius-control);
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.guide-tab-row:hover {
+  background: var(--surface-high);
+  border-color: var(--line-strong);
+}
+
+.guide-tab-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-control);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.guide-tab-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.guide-tab-copy strong {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.guide-tab-copy span {
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.guide-tab-arrow {
+  color: var(--muted);
+}
+
+/* Legenda de sinal + dicas */
+.guide-section-note {
+  margin: 0 0 12px;
+}
+
+.guide-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.guide-legend-item {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.guide-legend-meaning {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.guide-tip {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 12px;
+  align-items: start;
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface-high);
+  border-radius: var(--radius-control);
+  padding: 14px;
+}
+
+.guide-tip-icon {
+  color: var(--primary);
+  margin-top: 2px;
+}
+
+.guide-tip strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.guide-tip p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.guide-tip code,
+.guide-step code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--primary);
+  overflow-wrap: anywhere;
+}
+
+/* Os passos são uma lista ordenada (<ol>): remove a aparência padrão de lista. */
+.guide-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

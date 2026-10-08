@@ -62,7 +62,7 @@ Arquivo: [.github/workflows/ci.yml](.github/workflows/ci.yml) — roda a cada pu
 
 | Job | O que roda |
 |---|---|
-| **dashboard** | `npm ci` → `typecheck:dashboard` (tsc) → `vitest` |
+| **dashboard** | `npm ci` → `typecheck:dashboard` (tsc) → `lint:dashboard` (ESLint) → `test:dashboard` (vitest) → `build:dashboard` |
 | **hub** | `pip install -e` → `unittest` → `compileall` |
 | **driver** | `pip install numpy` → testes do Recorder/control/export → `compileall` |
 
@@ -75,15 +75,15 @@ Arquivo: [.github/workflows/ci.yml](.github/workflows/ci.yml) — roda a cada pu
 Estabelece os contratos compartilhados e permite que o export carregue contexto fisiológico.
 
 **Novos contratos (dashboard, TypeScript):**
-- [subjectProfile.ts](hub-ue/apps/dashboard/src/subjectProfile.ts) — tipos do sujeito + persistência + validação.
-- [captureProfile.ts](hub-ue/apps/dashboard/src/captureProfile.ts) — `CaptureProfile`, builders, payload de lifecycle.
-- [exportFormats.ts](hub-ue/apps/dashboard/src/exportFormats.ts) — `ExportJob`, regra client/server, **encoder `.npy` funcional**, `buildExportEnvelopeV2`.
+- [subjectProfile.ts](hub-ue/apps/dashboard/src/domain/subjectProfile.ts) — tipos do sujeito + persistência + validação.
+- [captureProfile.ts](hub-ue/apps/dashboard/src/domain/captureProfile.ts) — `CaptureProfile`, builders, payload de lifecycle.
+- [exportFormats.ts](hub-ue/apps/dashboard/src/domain/exportFormats.ts) — `ExportJob`, regra client/server, **encoder `.npy` funcional**, `buildExportEnvelopeV2`.
 
 **Contrato (hub, Python):**
 - [schemas/capture.py](hub-ue/apps/hub/src/biofeedback_hub/schemas/capture.py) — Pydantic: `SubjectProfile`, `CaptureProfile`, `RecordingControl`, `ExportEnvelopeV2`.
 
 **Integração:**
-- [experienceReport.ts](hub-ue/apps/dashboard/src/experienceReport.ts) — o export do Report passa a embutir `subject`/`capture` **opcionais** (retrocompatível, `schemaVersion` 1 mantido).
+- [experienceReport.ts](hub-ue/apps/dashboard/src/domain/experienceReport.ts) — o export do Report passa a embutir `subject`/`capture` **opcionais** (retrocompatível, `schemaVersion` 1 mantido).
 
 **Apoio:**
 - [docs/decisions-novas-features.md](hub-ue/docs/decisions-novas-features.md) — decision log (D1–D10).
@@ -93,9 +93,9 @@ Estabelece os contratos compartilhados e permite que o export carregue contexto 
 
 Tela de cadastro com o perfil fluindo para a sessão e os exports.
 
-- [SubjectView.tsx](hub-ue/apps/dashboard/src/SubjectView.tsx) *(novo)* — formulário: ID pseudônimo, demografia (idade/sexo/altura/peso/posição), **confundidores de HRV** (cafeína, sono, álcool, exercício, nicotina, estresse, medicação) e **consentimento**, com validação.
-- [App.tsx](hub-ue/apps/dashboard/src/App.tsx) — nova aba **Subject**, estado `subjectProfile` + persistência em `localStorage`; snapshot anexado ao `experience.lifecycle started` e ao export do Report.
-- [styles.css](hub-ue/apps/dashboard/src/styles.css) — layout da tela + correção de largura de checkbox.
+- [SubjectView.tsx](hub-ue/apps/dashboard/src/features/subject/SubjectView.tsx) *(novo)* — formulário: ID pseudônimo, demografia (idade/sexo/altura/peso/posição), **confundidores de HRV** (cafeína, sono, álcool, exercício, nicotina, estresse, medicação) e **consentimento**, com validação.
+- [App.tsx](hub-ue/apps/dashboard/src/app/App.tsx) — nova aba **Subject**, estado `subjectProfile` + persistência em `localStorage`; snapshot anexado ao `experience.lifecycle started` e ao export do Report.
+- [styles.css](hub-ue/apps/dashboard/src/styles/index.css) — layout da tela + correção de largura de checkbox.
 
 ### Fase 2 — Gravação (②)
 
@@ -108,9 +108,9 @@ Fecha o loop que a ponte `biofeedback-polarh10` já esperava.
 - [main.py](polarh10_driver/main.py) — cria o `Recorder`, loga o `mode`, passa ao gateway.
 
 **Dashboard:**
-- [RecordingModeView.tsx](hub-ue/apps/dashboard/src/RecordingModeView.tsx) *(novo)* — seleção de modo (stream/record/hybrid) + matriz **sensores × sinais** (ECG/RR/HR/HRV) + ECG bruto.
-- [captureProfile.ts](hub-ue/apps/dashboard/src/captureProfile.ts) — persistência (`load`/`save`).
-- [App.tsx](hub-ue/apps/dashboard/src/App.tsx) — aba **Recording**, estado/persistência; `capture` publicado no `experience.lifecycle started` e no export.
+- [RecordingModeView.tsx](hub-ue/apps/dashboard/src/features/recording/RecordingModeView.tsx) *(novo)* — seleção de modo (stream/record/hybrid) + matriz **sensores × sinais** (ECG/RR/HR/HRV) + ECG bruto.
+- [captureProfile.ts](hub-ue/apps/dashboard/src/domain/captureProfile.ts) — persistência (`load`/`save`).
+- [App.tsx](hub-ue/apps/dashboard/src/app/App.tsx) — aba **Recording**, estado/persistência; `capture` publicado no `experience.lifecycle started` e no export.
 
 **Decisões aplicadas:** D1 = Recorder no driver · D2 = CSV+NPY · D3 = `data/recordings/<runId>_<device>_ecg` · D8 = `/control` agora existe (a ponte pode rodar **sem** `--disable-recording-control`).
 
@@ -127,9 +127,9 @@ Uso: `python -m tools.export_cli --session <id> --signal ecg --format npy --out 
 
 Monitor em tempo real no dashboard, sem sobrecarregar o React.
 
-- [liveSignal.ts](hub-ue/apps/dashboard/src/liveSignal.ts) — lógica pura/testável: janelas de ECG, séries HR/RR e decimação (`downsample`).
-- [LiveView.tsx](hub-ue/apps/dashboard/src/LiveView.tsx) — **ECG em `<canvas>`** (desenhado a partir do array derivado, fora do estado React) + **HR/RR em SVG** + BPM/RR atuais.
-- [App.tsx](hub-ue/apps/dashboard/src/App.tsx) — aba **Live**, alimentada pelos eventos `hrv.raw` vivos (que ainda têm o array `ecg`).
+- [liveSignal.ts](hub-ue/apps/dashboard/src/domain/liveSignal.ts) — lógica pura/testável: janelas de ECG, séries HR/RR e decimação (`downsample`).
+- [LiveView.tsx](hub-ue/apps/dashboard/src/features/live/LiveView.tsx) — **ECG em `<canvas>`** (desenhado a partir do array derivado, fora do estado React) + **HR/RR em SVG** + BPM/RR atuais.
+- [App.tsx](hub-ue/apps/dashboard/src/app/App.tsx) — aba **Live**, alimentada pelos eventos `hrv.raw` vivos (que ainda têm o array `ecg`).
 
 ### Fase 5 — Redesign do dashboard + guia embutido + markers locais
 
@@ -138,22 +138,65 @@ correção do "Add marker" no demo. **Nenhuma mudança de lógica das features**
 apresentação e o caminho de publicação do marker.
 
 **Redesign do dashboard (tema claro):**
-- [styles.css](hub-ue/apps/dashboard/src/styles.css) — reescrito como **tema claro** inspirado no front de referência `heart-vr-nexus` (NEXUS — Hub de Sensores ECG & VR). Tokens reais extraídos do CSS do site: fundo branco-acinzentado, **cards brancos** com borda suave/sombra e cantos arredondados, azul-marinho como primário, vermelho para ECG/erro, verde p/ OK. Todas as classes preexistentes foram preservadas (zero mudança de JSX para o restyle).
+- [styles.css](hub-ue/apps/dashboard/src/styles/index.css) — reescrito como **tema claro** inspirado no front de referência `heart-vr-nexus` (NEXUS — Hub de Sensores ECG & VR). Tokens reais extraídos do CSS do site: fundo branco-acinzentado, **cards brancos** com borda suave/sombra e cantos arredondados, azul-marinho como primário, vermelho para ECG/erro, verde p/ OK. Todas as classes preexistentes foram preservadas (zero mudança de JSX para o restyle).
 - **Fonte mais legível:** `Inter`/`Space Grotesk` → **IBM Plex Sans** (texto) + **IBM Plex Mono** (números, com `tabular-nums`). Reduzido o uso de CAIXA ALTA (só micro-labels), espaçamento maior e hierarquia mais clara ("tudo claro e separado").
-- [LiveView.tsx](hub-ue/apps/dashboard/src/LiveView.tsx) — cor do traço do ECG/tendências de azul-claro (`#6bc5ff`, invisível no fundo claro) para o **vermelho-ECG** do tema (`#c0362b`).
+- [LiveView.tsx](hub-ue/apps/dashboard/src/features/live/LiveView.tsx) — cor do traço do ECG/tendências de azul-claro (`#6bc5ff`, invisível no fundo claro) para o **vermelho-ECG** do tema (`#c0362b`).
 
 **Guia embutido (nova aba "Guia"):**
-- [GuideView.tsx](hub-ue/apps/dashboard/src/GuideView.tsx) *(novo)* — página dentro do app que explica as funcionalidades: hero, **fluxo de 5 passos** (Subject → Recording → Session → Live → Export) com botões que **navegam direto** para cada aba, lista "o que cada aba faz" (clicável), legenda dos estados do sinal (Streaming/Stale/Poor/None) e dicas (rodar sem hardware, export `.npy`/`.mat`).
-- [App.tsx](hub-ue/apps/dashboard/src/App.tsx) — `View` exportado e ampliado com `"guide"`; novo item de nav **Guia** (primeiro, ícone `BookOpen`), título "Guia de Uso", render da view e classes de estilo do guia no `styles.css`.
+- [GuideView.tsx](hub-ue/apps/dashboard/src/features/guide/GuideView.tsx) *(novo)* — página dentro do app que explica as funcionalidades: hero, **fluxo de 5 passos** (Subject → Recording → Session → Live → Export) com botões que **navegam direto** para cada aba, lista "o que cada aba faz" (clicável), legenda dos estados do sinal (Streaming/Stale/Poor/None) e dicas (rodar sem hardware, export `.npy`/`.mat`).
+- [App.tsx](hub-ue/apps/dashboard/src/app/App.tsx) — `View` exportado e ampliado com `"guide"`; novo item de nav **Guia** (primeiro, ícone `BookOpen`), título "Guia de Uso", render da view e classes de estilo do guia no `styles.css`.
 
 **Markers funcionam sem Unreal (fix):**
 - Antes o **Add marker** exigia um cliente Unreal inscrito em `unreal.commands` (`canDispatchAddMarker`), então no demo sem hardware o botão ficava **sempre desabilitado**.
 - Agora o marker é uma **anotação publicada direto no tópico `experience.marker`** (igual ao lifecycle): o próprio monitor do dashboard recebe de volta e o marker entra na **Timeline** e no **Report** — sem precisar do Unreal.
-- [commandHistory.ts](hub-ue/apps/dashboard/src/commandHistory.ts) — nova `canAnnotateMarker(isDispatching, label)` (só exige rótulo + não estar despachando). `canDispatchAddMarker` permanece intacta (ainda gateia o comando Unreal opcional com ACK quando há cliente).
-- [App.tsx](hub-ue/apps/dashboard/src/App.tsx) — `publishMarkerEvent` + `addMarker` (publica `experience.marker` e, se houver cliente de comando, também despacha o `add-marker` com ACK).
+- [commandHistory.ts](hub-ue/apps/dashboard/src/domain/commandHistory.ts) — nova `canAnnotateMarker(isDispatching, label)` (só exige rótulo + não estar despachando). `canDispatchAddMarker` permanece intacta (ainda gateia o comando Unreal opcional com ACK quando há cliente).
+- [App.tsx](hub-ue/apps/dashboard/src/app/App.tsx) — `publishMarkerEvent` + `addMarker` (publica `experience.marker` e, se houver cliente de comando, também despacha o `add-marker` com ACK).
 - `commandHistory.test.ts` — teste de `canAnnotateMarker` (108 testes verdes).
 
 > **Validação:** `typecheck:dashboard` verde, **108 testes** passando, e a entrega do `experience.marker` pelo hub confirmada ao vivo (monitor recebe o evento publicado como `dashboard-marker`).
+
+### Fase 6 — Dashboard refatorado, unificado com o hub-ue mais recente e em português
+
+Branch `feat/dashboard-refactor`, criada a partir de `feat/fase-5-redesign-guia-markers`.
+
+**Base unificada.** `hub-ue/` passa a ser a versão mais recente do hub-ue (Sensor Manager, adapter LSL, telemetria Unreal V2, recuperação de lifecycle, skill de instalação do plugin), com as features das Fases 0–5 portadas para cima dela. Nada das 4 exigências foi removido.
+
+**Hub (Python)**
+- Portados para a base nova: [schemas/capture.py](hub-ue/apps/hub/src/biofeedback_hub/schemas/capture.py), o ECG sintético do [simulator_hrv.py](hub-ue/apps/hub/src/biofeedback_hub/adapters/simulator_hrv.py) e o modo `hrv-ecg` do `biofeedback-sim`, com os respectivos testes.
+- A ponte `biofeedback-polarh10` é a da versão nova do hub-ue (com testes próprios).
+
+**Dashboard — estrutura do código**
+- O `App.tsx` de 3.669 linhas virou módulos pequenos: `src/app` (casca e hooks), `src/features` (uma pasta por tela), `src/components`, `src/domain` (lógica pura testada), `src/lib` e `src/styles` (CSS por área, a partir de tokens). Detalhes em [hub-ue/apps/dashboard/README.md](hub-ue/apps/dashboard/README.md).
+- O componente `App` foi decomposto em hooks de responsabilidade única (status do hub, WebSocket, buffer de eventos, lifecycle, comandos, preparação da sessão).
+- ESLint adicionado (`npm run lint:dashboard`); `tsc` passa a recusar variáveis e parâmetros não usados; o CI roda typecheck, lint, testes e build.
+- Lógica que dependia de texto de exibição foi trocada por campos próprios (`commandObservation`, `biometricObservation`), o que permitiu traduzir a interface sem quebrar o relatório.
+
+**Dashboard — usabilidade (heurísticas de Nielsen)**
+
+| Heurística | O que mudou |
+|---|---|
+| 1. Visibilidade do status | Estado do hub e do stream no topo de todas as telas; aviso global quando a conexão cai; reconexão automática do WebSocket (antes exigia recarregar a página); avisos de confirmação após exportar; "Conectando…" em vez de "Offline" antes da primeira resposta |
+| 2. Linguagem do usuário | Interface inteira em português, datas no formato brasileiro; erros de rede explicam o que verificar |
+| 3. Controle e liberdade | Navegação por URL (voltar/avançar e recarregar funcionam); pausar o stream e fixar um evento em Tópicos; limpar cadastro e restaurar padrão; diálogos fecham com Esc ou clique fora |
+| 4. Consistência | Um idioma só; componentes compartilhados para painel, diálogo, selo e tabela |
+| 5. Prevenção de erros | Confirmação ao encerrar, ao iniciar a próxima experiência (o relatório anterior é substituído) e ao iniciar com o cadastro incompleto; endereço do hub validado e aplicado por botão (antes cada tecla reconectava e um endereço inválido derrubava a tela) |
+| 6. Reconhecer em vez de lembrar | Menu agrupado na ordem da sessão; motivo de um botão indisponível sempre visível; endereço do hub na barra lateral |
+| 7. Eficiência | Marker enviado por Enter, sem diálogo, para o carimbo de tempo ser o do momento observado |
+| 8. Design minimalista | Botões sem função removidos ou tornados funcionais (exportação de diagnóstico) |
+| 9. Recuperação de erros | Falha de uma tela não derruba o dashboard; mensagens dizem o próximo passo |
+| 10. Ajuda | Guia de uso atualizado e estados vazios que explicam como preencher a tela |
+
+Acessibilidade: foco preso e devolvido nos diálogos, abas navegáveis por setas, rótulos em todos os campos, contraste das cores de status de pelo menos 4,5:1 e layout utilizável até a largura de celular (antes havia largura mínima de 1080 px).
+
+**Mudanças de comportamento**
+- O marker não pede mais confirmação. Com um cliente em `unreal.commands` ele vai como comando `add-marker`; sem esse cliente o dashboard publica `experience.marker` pelo próprio socket. Na Fase 5 os dois caminhos eram usados juntos; como a deduplicação da timeline usa o `commandId` quando ele existe, isso podia gerar duas entradas para o mesmo marker quando havia Unreal.
+- `capture` e `subject` seguem apenas no `experience.lifecycle` `started`.
+- Verde, âmbar e vermelho do tema foram escurecidos para atingir o contraste mínimo.
+- Rótulos antigos → novos: Overview → Visão geral · Subject → Sujeito · Recording → Gravação · Session Control → Controle da sessão · Live → Ao vivo · Clients → Clientes · Topics → Tópicos · Diagnostics → Diagnóstico · Guia → Guia de uso.
+
+**Validação.** `npm run check:dashboard` (typecheck, lint e 185 testes), `npm run build:dashboard`, 149 testes do hub e um roteiro em navegador contra hub e simuladores reais: recuperar run órfã, iniciar, marker com e sem Unreal, pausar, encerrar, relatório, recarregar e queda/retorno do hub.
+
+**Não validado nesta fase:** hardware real (Polar H10, Quest) e o `tools/export_cli.py` do driver contra o JSONL gerado pela versão nova do hub.
 
 ---
 
@@ -190,15 +233,15 @@ sequenceDiagram
 | [PLANO-NOVAS-FEATURES.md](PLANO-NOVAS-FEATURES.md) | Análise + plano conceitual das features |
 | [PASSO-A-PASSO.md](PASSO-A-PASSO.md) | Tutorial de instalação e uso das 4 features (Fase 5) |
 | [MUDANCAS.md](MUDANCAS.md) | Este documento |
-| [GuideView.tsx](hub-ue/apps/dashboard/src/GuideView.tsx) | Guia de uso embutido no dashboard (aba **Guia**, Fase 5) |
+| [GuideView.tsx](hub-ue/apps/dashboard/src/features/guide/GuideView.tsx) | Guia de uso embutido no dashboard (aba **Guia**, Fase 5) |
 | [.github/workflows/ci.yml](.github/workflows/ci.yml) | CI (dashboard + hub + driver) |
-| [subjectProfile.ts](hub-ue/apps/dashboard/src/subjectProfile.ts) + `.test.ts` | Contrato/persistência do sujeito |
-| [captureProfile.ts](hub-ue/apps/dashboard/src/captureProfile.ts) + `.test.ts` | Contrato/persistência da captura |
-| [exportFormats.ts](hub-ue/apps/dashboard/src/exportFormats.ts) + `.test.ts` | Export (regra, `.npy`, envelope v2) |
-| [SubjectView.tsx](hub-ue/apps/dashboard/src/SubjectView.tsx) | Tela de cadastro do sujeito |
-| [RecordingModeView.tsx](hub-ue/apps/dashboard/src/RecordingModeView.tsx) | Tela de modos de gravação |
-| [liveSignal.ts](hub-ue/apps/dashboard/src/liveSignal.ts) + `.test.ts` | Lógica da visualização ao vivo (janelas/decimação) |
-| [LiveView.tsx](hub-ue/apps/dashboard/src/LiveView.tsx) | Monitor ao vivo (ECG canvas + HR/RR) |
+| [subjectProfile.ts](hub-ue/apps/dashboard/src/domain/subjectProfile.ts) + `.test.ts` | Contrato/persistência do sujeito |
+| [captureProfile.ts](hub-ue/apps/dashboard/src/domain/captureProfile.ts) + `.test.ts` | Contrato/persistência da captura |
+| [exportFormats.ts](hub-ue/apps/dashboard/src/domain/exportFormats.ts) + `.test.ts` | Export (regra, `.npy`, envelope v2) |
+| [SubjectView.tsx](hub-ue/apps/dashboard/src/features/subject/SubjectView.tsx) | Tela de cadastro do sujeito |
+| [RecordingModeView.tsx](hub-ue/apps/dashboard/src/features/recording/RecordingModeView.tsx) | Tela de modos de gravação |
+| [liveSignal.ts](hub-ue/apps/dashboard/src/domain/liveSignal.ts) + `.test.ts` | Lógica da visualização ao vivo (janelas/decimação) |
+| [LiveView.tsx](hub-ue/apps/dashboard/src/features/live/LiveView.tsx) | Monitor ao vivo (ECG canvas + HR/RR) |
 | [schemas/capture.py](hub-ue/apps/hub/src/biofeedback_hub/schemas/capture.py) + `tests/test_capture_schemas.py` | Contrato Pydantic |
 | [core/recorder.py](polarh10_driver/core/recorder.py) | Gravação de ECG bruto |
 | [core/control.py](polarh10_driver/core/control.py) | Handler de `/control` |
@@ -210,11 +253,11 @@ sequenceDiagram
 
 | Arquivo | Mudança |
 |---|---|
-| [App.tsx](hub-ue/apps/dashboard/src/App.tsx) | Abas Subject, Recording e Live; aba **Guia** + `View` exportado (Fase 5); markers locais (`publishMarkerEvent`/`addMarker`); estado, persistência, lifecycle e export |
-| [experienceReport.ts](hub-ue/apps/dashboard/src/experienceReport.ts) | `subject`/`capture` opcionais no export |
-| [styles.css](hub-ue/apps/dashboard/src/styles.css) | **Fase 5:** reescrito como tema claro (IBM Plex, cards separados) + estilos do guia. Antes: estilos das telas novas + checkbox |
-| [LiveView.tsx](hub-ue/apps/dashboard/src/LiveView.tsx) | **Fase 5:** cor do traço do ECG para o vermelho do tema claro |
-| [commandHistory.ts](hub-ue/apps/dashboard/src/commandHistory.ts) | **Fase 5:** `canAnnotateMarker` (markers sem cliente Unreal) |
+| [App.tsx](hub-ue/apps/dashboard/src/app/App.tsx) | Abas Subject, Recording e Live; aba **Guia** + `View` exportado (Fase 5); markers locais (`publishMarkerEvent`/`addMarker`); estado, persistência, lifecycle e export |
+| [experienceReport.ts](hub-ue/apps/dashboard/src/domain/experienceReport.ts) | `subject`/`capture` opcionais no export |
+| [styles.css](hub-ue/apps/dashboard/src/styles/index.css) | **Fase 5:** reescrito como tema claro (IBM Plex, cards separados) + estilos do guia. Antes: estilos das telas novas + checkbox |
+| [LiveView.tsx](hub-ue/apps/dashboard/src/features/live/LiveView.tsx) | **Fase 5:** cor do traço do ECG para o vermelho do tema claro |
+| [commandHistory.ts](hub-ue/apps/dashboard/src/domain/commandHistory.ts) | **Fase 5:** `canAnnotateMarker` (markers sem cliente Unreal) |
 | [websocket_gateway.py](polarh10_driver/core/websocket_gateway.py) | Endpoint `/control` + gravação no loop |
 | [websocket_gateway_dashboard.py](polarh10_driver/core/websocket_gateway_dashboard.py) | Idem (gateway com visualização) |
 | [main.py](polarh10_driver/main.py) | Cria o Recorder e loga o mode |
@@ -232,8 +275,8 @@ sequenceDiagram
 # Dashboard
 cd hub-ue
 npm install
-npm run typecheck:dashboard
-npm test -w @quest-supervisor/dashboard
+npm run check:dashboard   # typecheck + lint + testes
+npm run build:dashboard
 
 # Hub
 python -m venv .venv
