@@ -79,6 +79,24 @@ Novas funções públicas:
 - `ReloadSettings()`
 
 Com `bAutoConnectOnStartup=true`, o subsystem chama `StartSupervisor()` durante `Initialize()`.
+Nesse modo, o Blueprint não precisa chamar `StartSupervisor()` novamente no
+`BeginPlay`. A função é idempotente enquanto o transporte já está conectando ou
+conectado com o mesmo endpoint, token, identidade e capabilities, evitando
+registros, heartbeats e logs de bootstrap duplicados. A mesma regra cobre o
+intervalo de backoff de uma reconexão. Se endpoint, token, identidade ou capabilities
+mudarem, a nova chamada fecha o transporte anterior e abre outro WebSocket antes
+de registrar a configuração atualizada. `ReloadSettings()` e
+`ApplyRuntimeConfig()` reconciliam pelo mesmo caminho quando o transporte está
+ativo, e `SetSupervisorEnabled(true)` inicia pelo mesmo contrato. Um transporte
+parado intencionalmente permanece parado durante uma simples recarga de
+configuração. O desligamento intencional descarta mensagens ainda enfileiradas,
+evitando que eventos da configuração anterior atravessem para outro Hub ou
+`DeviceId`. Durante uma reconfiguração, a fila só é preservada quando endpoint e
+`DeviceId` continuam iguais, como em uma simples rotação de token.
+
+Se o WebSocket já estiver conectado antes de `RegisterDevice()`, o registro
+inicia heartbeat e probes de comunicação nesse momento. Assim, RTT e perda não
+dependem de uma reconexão posterior.
 
 ### `UQuestSupervisorComponent`
 

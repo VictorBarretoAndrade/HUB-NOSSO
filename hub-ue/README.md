@@ -34,7 +34,7 @@ npm install
 npm run dev:dashboard
 ```
 
-Abra `http://127.0.0.1:5173`. O dashboard usa `http://127.0.0.1:8787` como endpoint padrão do hub e permite alterar o endpoint em **Diagnostics**.
+Abra `http://127.0.0.1:5173`. O dashboard usa `http://127.0.0.1:8787` como endpoint padrão do hub e permite alterar o endpoint em **Diagnóstico**.
 
 Para subir hub, dashboard e simuladores locais juntos:
 
@@ -48,7 +48,7 @@ O demo usa o hub em `http://127.0.0.1:8788`, dashboard em `http://127.0.0.1:5173
 npm run dev:demo:stop
 ```
 
-Detalhes do Session Control, lifecycle, markers e exports ficam em [apps/dashboard/README.md](apps/dashboard/README.md).
+Detalhes do Controle da sessão, lifecycle, markers e exportações ficam em [apps/dashboard/README.md](apps/dashboard/README.md).
 
 ## Teste sem Unreal
 
@@ -86,7 +86,7 @@ npm run dev:dashboard
 .\.venv\Scripts\biofeedback-sim --mode multi-sensor
 ```
 
-Abra `http://127.0.0.1:5173`. Na **Operational Overview**, use o seletor **Viewing** em **Sensor readiness** para alternar entre HRV, ECG, IMU, temperatura e qualidade do ar. O painel **Live sensor data** e a aba **Session Control > Sensors** permitem exportar as amostras recebidas em JSON.
+Abra `http://127.0.0.1:5173`. Na **Visão geral**, use o seletor **Exibindo** em **Prontidão do sensor** para alternar entre HRV, ECG, IMU, temperatura e qualidade do ar. O painel **Dados dos sensores ao vivo** e a aba **Controle da sessão > Sensores** permitem exportar as amostras recebidas em JSON.
 
 ## Conectar Unreal
 
@@ -118,7 +118,7 @@ O guia completo está em [docs/unreal-project-integration.md](docs/unreal-projec
 - [docs/protocol.md](docs/protocol.md): envelope WebSocket, tópicos e ACK.
 - [docs/unreal-project-integration.md](docs/unreal-project-integration.md): instalação e teste do plugin em projetos Unreal.
 - [docs/websocket-device-integration.md](docs/websocket-device-integration.md): guia para conectar sensores e dispositivos genericos via WebSocket.
-- [apps/dashboard/README.md](apps/dashboard/README.md): detalhes do dashboard, Session Control e exports.
+- [apps/dashboard/README.md](apps/dashboard/README.md): organização do código, telas, comportamento em uma sessão e exportações do dashboard.
 
 ## Estrutura
 
@@ -136,6 +136,6 @@ O guia completo está em [docs/unreal-project-integration.md](docs/unreal-projec
 $env:PYTHONPATH="C:\Codex\quest-supervisor-ue\apps\hub\src"
 python -m unittest discover -s apps\hub\tests
 python -m compileall -q apps\hub\src apps\hub\tests
-npm run typecheck:dashboard
+npm run check:dashboard
 npm run build:dashboard
 ```

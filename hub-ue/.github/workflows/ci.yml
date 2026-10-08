@@ -32,6 +32,59 @@ jobs:
       - name: Compile Python modules
         run: python -m compileall -q apps/hub/src apps/hub/tests
 
+  dashboard:
+    name: Dashboard checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dashboard dependencies
+        run: npm ci
+
+      - name: Run dashboard tests
+        run: npm run test -w @quest-supervisor/dashboard
+
+      - name: Typecheck dashboard
+        run: npm run typecheck -w @quest-supervisor/dashboard
+
+      - name: Lint dashboard
+        run: npm run lint -w @quest-supervisor/dashboard
+
+      - name: Build dashboard
+        run: npm run build -w @quest-supervisor/dashboard
+
+  lsl-windows-smoke:
+    name: LSL Windows smoke test
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install hub with LSL
+        run: python -m pip install -e "apps/hub[lsl]"
+
+      - name: Load liblsl
+        run: python -c "from pylsl import library_version; assert library_version() > 0; print(library_version())"
+
+      - name: Run full hub suite with LSL
+        run: python -m unittest discover -s apps/hub/tests
+        env:
+          BIOFEEDBACK_TEST_REAL_LSL: "1"
+
   unreal-plugin-package:
     name: Unreal plugin package smoke test
     runs-on: windows-latest

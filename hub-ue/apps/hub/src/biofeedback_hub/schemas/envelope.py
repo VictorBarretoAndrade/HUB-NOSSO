@@ -73,6 +73,15 @@ class AckPayload(BaseModel):
     detail: str | None = None
 
 
+class SystemPingPayload(BaseModel):
+    sequence: int = Field(strict=True)
+
+
+class SystemPongPayload(SystemPingPayload):
+    pingHubReceivedAt: str = Field(min_length=1)
+    hubRespondedAt: str = Field(min_length=1)
+
+
 class ErrorPayload(BaseModel):
     code: str
     message: str
@@ -133,10 +142,15 @@ def make_error(
     code: str,
     message: str,
     correlation_id: str | None = None,
+    detail: dict[str, Any] | None = None,
 ) -> MessageEnvelope:
     return MessageEnvelope(
         type=MessageType.ERROR,
         clientId=client_id,
         correlationId=correlation_id,
-        payload=ErrorPayload(code=code, message=message).model_dump(mode="json"),
+        payload=ErrorPayload(
+            code=code,
+            message=message,
+            detail=detail,
+        ).model_dump(mode="json"),
     )

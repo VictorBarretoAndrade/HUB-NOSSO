@@ -44,6 +44,13 @@ class MessageEnvelopeTest(unittest.TestCase):
     def test_experience_lifecycle_topic_is_official(self) -> None:
         self.assertEqual(Topic.EXPERIENCE_LIFECYCLE.value, "experience.lifecycle")
 
+    def test_sensor_manager_topics_are_official(self) -> None:
+        self.assertEqual(Topic.SENSOR_COMMANDS.value, "sensor.commands")
+        self.assertEqual(Topic.SENSOR_STATUS.value, "sensor.status")
+        self.assertEqual(Topic.SENSOR_PREVIEW.value, "sensor.preview")
+        self.assertEqual(Topic.SENSOR_SESSION.value, "sensor.session")
+        self.assertEqual(Topic.LSL_RAW.value, "lsl.raw")
+
     def test_publish_rejects_missing_topic(self) -> None:
         with self.assertRaises(ValidationError):
             MessageEnvelope(type=MessageType.PUBLISH, clientId="hrv-sim", payload={"bpm": 72})

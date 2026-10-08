@@ -328,7 +328,7 @@ Funcoes atuais:
 - `Clients`: clientes conectados e roles.
 - `Diagnostics`: endpoint do hub, health/status e token local.
 - `Topics`: abre WebSocket como `dashboard-ui` e mostra eventos recebidos.
-- `Session Control`: start/end local, pause/resume, add-marker, timeline e report.
+- `Controle da sessão`: iniciar/encerrar local, pausar/retomar, markers, timeline e relatório.
 - `Report`: resumo de sessao, biometria, markers, command issues e exports.
 
 Arquivos de dominio importantes:
@@ -473,7 +473,7 @@ Definition of done:
 
 ### Frontend
 
-- Refinar Session Control e Report com base na demo real.
+- Refinar o Controle da sessão e o Relatório com base na demo real.
 - Melhorar visualizacao de HRV ao longo da timeline.
 - Criar arquitetura de plataforma: projetos, participantes, sessoes, sensores.
 - Definir exports pensando em pesquisadores.

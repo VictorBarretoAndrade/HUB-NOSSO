@@ -1,0 +1,7 @@
+interface:
+  display_name: "Instalar Quest Supervisor"
+  short_description: "Instala e valida o plugin do Hub no Unreal"
+  default_prompt: "Use $install-quest-supervisor-unreal para instalar e validar o Quest Supervisor no meu projeto Unreal."
+
+policy:
+  allow_implicit_invocation: true

@@ -56,6 +56,21 @@ def format_status(payload: dict[str, Any]) -> str:
     else:
         lines.append("- none")
 
+    lines.extend(["", "Sensor Manager"])
+    sensor_manager = payload.get("sensorManager") or {}
+    sensors = sensor_manager.get("sensors") if isinstance(sensor_manager, dict) else []
+    if sensors:
+        lines.append(
+            f"- sensors={sensor_manager.get('sensorCount', len(sensors))} adapters={sensor_manager.get('adapterCount', 0)} recording={sensor_manager.get('recordingCount', 0)}"
+        )
+        for sensor in sensors:
+            topics = ", ".join(sensor.get("topics") or []) or "-"
+            lines.append(
+                f"  - {sensor.get('sensorId')} [{sensor.get('state')}] adapter={sensor.get('adapterId')} topics={topics}"
+            )
+    else:
+        lines.append("- none")
+
     lines.extend(["", "Pending ACKs"])
     pending_acks = payload.get("pendingAcks") or []
     if pending_acks:

@@ -62,6 +62,52 @@ class DoctorTest(unittest.TestCase):
         self.assertIn("Unreal command subscribers: 0", report)
         self.assertIn("No client is subscribed to unreal.commands", report)
 
+    def test_format_report_diagnoses_unavailable_lsl_provider(self) -> None:
+        report = doctor.format_report(
+            health={"ok": True, "service": "biofeedback-hub", "sessionId": "session-test"},
+            status={
+                "clients": [],
+                "sensorManager": {
+                    "providers": [
+                        {
+                            "providerId": "lsl",
+                            "state": "unavailable",
+                            "discoveredCount": 0,
+                            "supportedCount": 0,
+                            "unsupportedCount": 0,
+                            "error": "pylsl is not installed",
+                        }
+                    ]
+                },
+            },
+        )
+
+        self.assertIn("lsl: unavailable", report)
+        self.assertIn("pylsl is not installed", report)
+        self.assertIn("apps/hub[lsl]", report)
+
+    def test_format_report_reports_completed_lsl_scan_without_streams(self) -> None:
+        report = doctor.format_report(
+            health={"ok": True, "service": "biofeedback-hub", "sessionId": "session-test"},
+            status={
+                "clients": [],
+                "sensorManager": {
+                    "providers": [
+                        {
+                            "providerId": "lsl",
+                            "state": "ready",
+                            "discoveredCount": 0,
+                            "supportedCount": 0,
+                            "unsupportedCount": 0,
+                            "lastScanAt": "2026-08-04T12:00:00Z",
+                        }
+                    ]
+                },
+            },
+        )
+
+        self.assertIn("no LSL streams were found during the latest scan", report)
+
     def test_format_offline_report_suggests_start_command(self) -> None:
         report = doctor.format_offline_report("http://127.0.0.1:8787", URLError("refused"))
 

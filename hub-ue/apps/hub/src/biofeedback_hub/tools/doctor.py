@@ -61,6 +61,8 @@ def format_report(health: dict[str, Any], status: dict[str, Any]) -> str:
         client for client in clients if "unreal.commands" in (client.get("subscriptions") or [])
     ]
     pending_acks = status.get("pendingAcks") or []
+    sensor_manager = status.get("sensorManager") or {}
+    sensor_providers = sensor_manager.get("providers") or []
 
     lines = [
         "Biofeedback Doctor",
@@ -71,8 +73,35 @@ def format_report(health: dict[str, Any], status: dict[str, Any]) -> str:
         f"Unreal command subscribers: {len(unreal_command_clients)}",
         f"Pending ACKs: {status.get('pendingAckCount', len(pending_acks))}",
         "",
-        "Unreal command clients",
+        "Sensor providers",
     ]
+
+    if sensor_providers:
+        for provider in sensor_providers:
+            lines.append(
+                f"- {provider.get('providerId', 'unknown')}: {provider.get('state', 'unknown')} "
+                f"discovered={provider.get('discoveredCount', 0)} "
+                f"supported={provider.get('supportedCount', 0)} "
+                f"unsupported={provider.get('unsupportedCount', 0)}"
+            )
+            if provider.get("error"):
+                lines.append(f"  error: {provider['error']}")
+            if provider.get("providerId") == "lsl":
+                if provider.get("state") == "unavailable":
+                    lines.append("  install: python -m pip install -e \"apps/hub[lsl]\"")
+                elif provider.get("state") == "error":
+                    lines.append("  check the liblsl installation and PYLSL_LIB path")
+                elif provider.get("lastScanAt") is None:
+                    lines.append("  scan: use Sensor Scan in the dashboard")
+                elif provider.get("discoveredCount", 0) == 0:
+                    lines.append("  no LSL streams were found during the latest scan")
+    else:
+        lines.append("- none reported")
+
+    lines.extend([
+        "",
+        "Unreal command clients",
+    ])
 
     if unreal_command_clients:
         for client in unreal_command_clients:

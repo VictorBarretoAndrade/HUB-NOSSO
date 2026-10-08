@@ -8,6 +8,7 @@
 #include "QuestSupervisorSubsystem.generated.h"
 
 class FJsonObject;
+class FQuestSupervisorTelemetryState;
 class IWebSocket;
 
 UCLASS(BlueprintType)
@@ -120,7 +121,7 @@ private:
     FQuestSupervisorDeviceRegistration BuildConfiguredRegistration() const;
     FQuestSupervisorHeartbeat BuildConfiguredHeartbeat() const;
     bool ConnectTransport();
-    void DisconnectTransport(bool bIntentional);
+    void DisconnectTransport(bool bIntentional, bool bPreserveOutgoingMessages = false);
     FString BuildSocketUrl() const;
     FString BuildSafeEndpointForLog() const;
 
@@ -131,22 +132,40 @@ private:
         const FString& CorrelationId = FString(),
         bool bRequiresAck = false,
         const FString& CollectedAt = FString(),
-        int64 SessionTimeMs = -1);
+        int64 SessionTimeMs = -1,
+        FString* OutMessageId = nullptr);
     bool SendRegistrationMessage(bool bRefreshTimestamp);
     bool SendSubscribeMessage();
-    bool ParseAndDispatchCommand(const FString& RawJson);
+    bool ParseAndDispatchIncomingMessage(const FString& RawJson);
+    bool DispatchCommand(
+        const TSharedPtr<FJsonObject>& RootObject,
+        const TSharedPtr<FJsonObject>& PayloadObject);
+    bool HandleSystemPong(
+        const TSharedPtr<FJsonObject>& RootObject,
+        const TSharedPtr<FJsonObject>& PayloadObject);
+    bool HandleExperienceLifecycleEcho(const TSharedPtr<FJsonObject>& PayloadObject);
+    bool HandleExperienceLifecycleError(const TSharedPtr<FJsonObject>& RootObject);
 
     void QueueOutgoingMessage(const FString& MessageJson);
     void FlushOutgoingMessages();
 
-    void HandleSocketConnected();
-    void HandleSocketClosed(int32 StatusCode, const FString& Reason, bool bWasClean);
-    void HandleSocketConnectionError(const FString& Error);
-    void HandleSocketMessage(const FString& Message);
+    void HandleSocketConnected(uint64 SocketGeneration);
+    void HandleSocketClosed(uint64 SocketGeneration, int32 StatusCode, const FString& Reason, bool bWasClean);
+    void HandleSocketConnectionError(uint64 SocketGeneration, const FString& Error);
+    void HandleSocketMessage(uint64 SocketGeneration, const FString& Message);
 
     void StartHeartbeatLoop();
     void StopHeartbeatLoop();
     bool HandleHeartbeatTick(float DeltaTime);
+
+    void StartTelemetrySampling();
+    void StopTelemetrySampling();
+    bool HandleTelemetryTick(float DeltaTime);
+
+    void StartCommunicationProbeLoop();
+    void StopCommunicationProbeLoop();
+    bool HandleCommunicationProbeTick(float DeltaTime);
+    bool SendCommunicationProbe(double SentAtSeconds, bool bTrackResult);
 
     void ScheduleReconnect();
     void StopReconnectLoop();
@@ -158,7 +177,8 @@ private:
 
     FQuestSupervisorHeartbeat BuildHeartbeatPayload(const FQuestSupervisorHeartbeat* SourceHeartbeat = nullptr) const;
     void RefreshAutomaticTelemetry(FQuestSupervisorHeartbeat& Payload) const;
-    float GetSessionElapsedSeconds() const;
+    float GetSupervisorUptimeSeconds() const;
+    float GetExperienceElapsedSeconds() const;
     float GetCurrentFramesPerSecond() const;
     float GetUsedMemoryMegabytes() const;
     FQuestSupervisorLogEntry BuildLogPayload(const FQuestSupervisorLogEntry& Entry) const;
@@ -184,9 +204,6 @@ private:
     FQuestSupervisorHeartbeat CachedHeartbeat;
 
     UPROPERTY()
-    FString ActiveExperienceRunId;
-
-    UPROPERTY()
     FString LastHeartbeatTimestamp;
 
     UPROPERTY()
@@ -205,9 +222,13 @@ private:
     FQuestSupervisorRuntimeConfig RuntimeConfig;
 
     FQuestSupervisorAndroidBridge AndroidBridge;
+    TSharedPtr<FQuestSupervisorTelemetryState> TelemetryState;
     TSharedPtr<IWebSocket> ActiveSocket;
+    FString ConnectionAuthToken;
 
     FTSTicker::FDelegateHandle HeartbeatTickerHandle;
+    FTSTicker::FDelegateHandle TelemetryTickerHandle;
+    FTSTicker::FDelegateHandle CommunicationProbeTickerHandle;
     FTSTicker::FDelegateHandle ReconnectTickerHandle;
 
     bool bHasRegistration = false;
@@ -216,7 +237,11 @@ private:
     bool bIntentionalDisconnect = false;
     int32 ReconnectAttempts = 0;
 
+    FString PendingExperienceRunId;
+    FString PendingExperienceEvent;
+    FString PendingExperienceMessageId;
     double SessionStartSeconds = 0.0;
+    double NextProbeSendSeconds = 0.0;
     float HeartbeatIntervalSeconds = 2.0f;
     float InitialReconnectDelaySeconds = 1.0f;
     float MaxReconnectDelaySeconds = 30.0f;

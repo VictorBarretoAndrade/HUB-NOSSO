@@ -15,6 +15,7 @@
 #include "Modules/ModuleManager.h"
 #include "QuestSupervisorModule.h"
 #include "QuestSupervisorSettings.h"
+#include "QuestSupervisorTelemetryState.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
@@ -28,6 +29,9 @@ namespace
     const TCHAR* TopicExperienceLifecycle = TEXT("experience.lifecycle");
     const TCHAR* TopicExperienceMarker = TEXT("experience.marker");
     const TCHAR* TopicLoggerEvents = TEXT("logger.events");
+    const TCHAR* TopicSystemPing = TEXT("system.ping");
+    const TCHAR* TopicSystemPong = TEXT("system.pong");
+    constexpr float CommunicationProbeTickSeconds = 0.25f;
 
     FString DeviceStatusToString(EQuestSupervisorDeviceStatus Status)
     {
@@ -110,19 +114,44 @@ namespace
         return Values;
     }
 
-    TSharedPtr<FJsonObject> BuildTelemetryObject(const FQuestSupervisorTelemetrySnapshot& Telemetry)
+    FQuestSupervisorTelemetryMetricAvailability AvailableMetric(const FString& Source)
     {
-        TSharedPtr<FJsonObject> Object = MakeShared<FJsonObject>();
-        Object->SetNumberField(TEXT("fps"), Telemetry.FPS);
-        Object->SetNumberField(TEXT("latencyMs"), Telemetry.LatencyMs);
-        Object->SetNumberField(TEXT("batteryPct"), Telemetry.BatteryPct);
-        Object->SetNumberField(TEXT("cpuPct"), Telemetry.CpuPct);
-        Object->SetNumberField(TEXT("gpuPct"), Telemetry.GpuPct);
-        Object->SetNumberField(TEXT("memoryMb"), Telemetry.MemoryMb);
-        Object->SetNumberField(TEXT("temperatureC"), Telemetry.TemperatureC);
-        Object->SetNumberField(TEXT("packetLossPct"), Telemetry.PacketLossPct);
-        Object->SetNumberField(TEXT("sessionElapsedSec"), Telemetry.SessionElapsedSec);
-        return Object;
+        FQuestSupervisorTelemetryMetricAvailability Availability;
+        Availability.Status = TEXT("available");
+        Availability.Source = Source;
+        return Availability;
+    }
+
+    FQuestSupervisorTelemetryMetricAvailability UnavailableMetric(const FString& Reason)
+    {
+        FQuestSupervisorTelemetryMetricAvailability Availability;
+        Availability.Status = TEXT("unavailable");
+        Availability.Reason = Reason;
+        return Availability;
+    }
+
+    FString GetTelemetryPlatform()
+    {
+#if PLATFORM_ANDROID
+        return TEXT("android");
+#elif PLATFORM_WINDOWS
+        return TEXT("windows");
+#elif PLATFORM_MAC
+        return TEXT("mac");
+#elif PLATFORM_LINUX
+        return TEXT("linux");
+#else
+        return TEXT("unknown");
+#endif
+    }
+
+    FString GetTelemetryExecutionMode()
+    {
+#if WITH_EDITOR
+        return GIsEditor ? TEXT("editor") : TEXT("packaged");
+#else
+        return TEXT("packaged");
+#endif
     }
 
     TSharedPtr<FJsonObject> BuildArgumentsObject(const TMap<FString, FString>& Arguments)
@@ -252,6 +281,8 @@ void UQuestSupervisorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
 
+    TelemetryState = MakeShared<FQuestSupervisorTelemetryState>();
+    TelemetryState->Reset();
     LoadRuntimeConfigFromIni();
     AndroidBridge.Initialize();
     TransportState = EQuestSupervisorTransportState::Disconnected;
@@ -266,7 +297,12 @@ void UQuestSupervisorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     bIsRegistered = false;
     bIntentionalDisconnect = false;
     ReconnectAttempts = 0;
+    PendingExperienceRunId.Reset();
+    PendingExperienceEvent.Reset();
+    PendingExperienceMessageId.Reset();
     SessionStartSeconds = 0.0;
+    NextProbeSendSeconds = 0.0;
+    StartTelemetrySampling();
 
     if (RuntimeConfig.bAutoConnectOnStartup)
     {
@@ -276,6 +312,7 @@ void UQuestSupervisorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UQuestSupervisorSubsystem::Deinitialize()
 {
+    StopTelemetrySampling();
     DisconnectTransport(true);
     AndroidBridge.Shutdown();
 
@@ -290,7 +327,16 @@ void UQuestSupervisorSubsystem::Deinitialize()
     bHasHeartbeat = false;
     bIsRegistered = false;
     ReconnectAttempts = 0;
+    PendingExperienceRunId.Reset();
+    PendingExperienceEvent.Reset();
+    PendingExperienceMessageId.Reset();
     SessionStartSeconds = 0.0;
+    NextProbeSendSeconds = 0.0;
+    if (TelemetryState.IsValid())
+    {
+        TelemetryState->Reset();
+    }
+    TelemetryState.Reset();
 
     Super::Deinitialize();
 }
@@ -343,14 +389,76 @@ bool UQuestSupervisorSubsystem::StartSupervisor()
     if (RuntimeConfig.SupervisorEndpoint.TrimStartAndEnd().IsEmpty())
     {
         LastConnectionError = TEXT("QuestSupervisor requires a SupervisorEndpoint before startup.");
+        if (ActiveSocket.IsValid() || ReconnectTickerHandle.IsValid())
+        {
+            DisconnectTransport(true);
+            SupervisorEndpoint.Reset();
+            ConnectionAuthToken.Reset();
+            bHasRegistration = false;
+        }
         return false;
     }
 
-    const bool bEndpointConfigured = ConfigureSupervisorEndpoint(RuntimeConfig.SupervisorEndpoint);
+    const FString RequestedEndpoint = NormalizeSupervisorEndpoint(RuntimeConfig.SupervisorEndpoint);
+    const FString RequestedAuthToken = RuntimeConfig.AuthToken.TrimStartAndEnd();
     const FQuestSupervisorDeviceRegistration Registration = BuildConfiguredRegistration();
+    const FQuestSupervisorDeviceCapabilities& RequestedCapabilities = Registration.Capabilities;
+    const FQuestSupervisorDeviceCapabilities& CachedCapabilities = CachedRegistration.Capabilities;
+    const bool bSameRegistrationConfig =
+        CachedRegistration.DeviceId == Registration.DeviceId &&
+        CachedRegistration.DeviceLabel == Registration.DeviceLabel &&
+        CachedRegistration.AppId == Registration.AppId &&
+        CachedRegistration.AppVersion == Registration.AppVersion &&
+        CachedRegistration.HeadsetModel == Registration.HeadsetModel &&
+        CachedCapabilities.bSceneLoading == RequestedCapabilities.bSceneLoading &&
+        CachedCapabilities.bTelemetry == RequestedCapabilities.bTelemetry &&
+        CachedCapabilities.bCommandExecution == RequestedCapabilities.bCommandExecution &&
+        CachedCapabilities.bLogs == RequestedCapabilities.bLogs &&
+        CachedCapabilities.bFutureStreaming == RequestedCapabilities.bFutureStreaming;
+    const bool bSameConnectionConfig =
+        RequestedEndpoint == SupervisorEndpoint &&
+        RequestedAuthToken == ConnectionAuthToken &&
+        bSameRegistrationConfig;
+    const bool bTransportConfigChanged =
+        RequestedEndpoint != SupervisorEndpoint ||
+        RequestedAuthToken != ConnectionAuthToken;
+    const bool bRegistrationConfigChanged =
+        bHasRegistration && !bSameRegistrationConfig;
+    const bool bSameMessageRoute =
+        RequestedEndpoint == SupervisorEndpoint &&
+        CachedRegistration.DeviceId == Registration.DeviceId;
+    const bool bTransportActiveOrReconnecting =
+        (ActiveSocket.IsValid() &&
+            (TransportState == EQuestSupervisorTransportState::Connecting || CanUseSocket())) ||
+        (!bIntentionalDisconnect && ReconnectTickerHandle.IsValid());
+
+    if (bHasRegistration && bSameConnectionConfig && bTransportActiveOrReconnecting)
+    {
+        UE_LOG(LogQuestSupervisor, Verbose, TEXT("QuestSupervisor is already starting or connected."));
+        return true;
+    }
+
+    if (bTransportActiveOrReconnecting &&
+        (bTransportConfigChanged || bRegistrationConfigChanged))
+    {
+        UE_LOG(LogQuestSupervisor, Log, TEXT("QuestSupervisor configuration changed; reconnecting transport."));
+        TArray<FString> PreservedOutgoingMessages;
+        if (bSameMessageRoute)
+        {
+            PreservedOutgoingMessages = MoveTemp(OutgoingMessages);
+        }
+        DisconnectTransport(true, bSameMessageRoute);
+        if (bSameMessageRoute)
+        {
+            PreservedOutgoingMessages.Append(OutgoingMessages);
+            OutgoingMessages = MoveTemp(PreservedOutgoingMessages);
+        }
+        bHasRegistration = false;
+    }
+
+    const bool bEndpointConfigured = ConfigureSupervisorEndpoint(RuntimeConfig.SupervisorEndpoint);
     const bool bRegistrationQueued = RegisterDevice(Registration);
 
-    SendHeartbeat(BuildConfiguredHeartbeat());
     SendSystemLog(TEXT("QuestSupervisor started from plugin settings."), EQuestSupervisorLogLevel::Info, TEXT("bootstrap"));
     return bEndpointConfigured && bRegistrationQueued;
 }
@@ -367,6 +475,9 @@ void UQuestSupervisorSubsystem::ReloadSettings()
 
 void UQuestSupervisorSubsystem::ApplyRuntimeConfig(const FQuestSupervisorRuntimeConfig& Config)
 {
+    const bool bShouldReconcileTransport =
+        ActiveSocket.IsValid() ||
+        (!bIntentionalDisconnect && ReconnectTickerHandle.IsValid());
     RuntimeConfig = Config;
     RuntimeConfig.HeartbeatIntervalSeconds = FMath::Max(0.25f, RuntimeConfig.HeartbeatIntervalSeconds);
     RuntimeConfig.InitialReconnectDelaySeconds = FMath::Max(0.25f, RuntimeConfig.InitialReconnectDelaySeconds);
@@ -386,6 +497,12 @@ void UQuestSupervisorSubsystem::ApplyRuntimeConfig(const FQuestSupervisorRuntime
     if (!RuntimeConfig.bSupervisorEnabled)
     {
         DisconnectTransport(true);
+        return;
+    }
+
+    if (bShouldReconcileTransport)
+    {
+        StartSupervisor();
     }
 }
 
@@ -399,10 +516,7 @@ void UQuestSupervisorSubsystem::SetSupervisorEnabled(bool bEnabled)
     }
 
     bIntentionalDisconnect = false;
-    if (!SupervisorEndpoint.IsEmpty())
-    {
-        ConnectTransport();
-    }
+    StartSupervisor();
 }
 
 void UQuestSupervisorSubsystem::SetAutoAckCommands(bool bEnabled)
@@ -486,10 +600,10 @@ bool UQuestSupervisorSubsystem::RegisterDevice(const FQuestSupervisorDeviceRegis
     bHasRegistration = true;
     bIsRegistered = false;
     SessionStartSeconds = FPlatformTime::Seconds();
+    CachedHeartbeat.DeviceId = CachedRegistration.DeviceId;
 
     if (!bHasHeartbeat)
     {
-        CachedHeartbeat.DeviceId = CachedRegistration.DeviceId;
         CachedHeartbeat.Status = EQuestSupervisorDeviceStatus::Online;
         bHasHeartbeat = true;
     }
@@ -504,6 +618,9 @@ bool UQuestSupervisorSubsystem::RegisterDevice(const FQuestSupervisorDeviceRegis
     {
         const bool bRegistered = SendRegistrationMessage(true);
         SendSubscribeMessage();
+        SendHeartbeat(BuildHeartbeatPayload(nullptr));
+        StartHeartbeatLoop();
+        StartCommunicationProbeLoop();
         return bRegistered;
     }
 
@@ -525,7 +642,9 @@ bool UQuestSupervisorSubsystem::SendHeartbeat(const FQuestSupervisorHeartbeat& H
     TSharedPtr<FJsonObject> PayloadObject = MakeShared<FJsonObject>();
     PayloadObject->SetStringField(TEXT("deviceId"), Payload.DeviceId);
     PayloadObject->SetStringField(TEXT("status"), DeviceStatusToString(Payload.Status));
-    PayloadObject->SetObjectField(TEXT("telemetry"), BuildTelemetryObject(Payload.Telemetry));
+    PayloadObject->SetObjectField(
+        TEXT("telemetry"),
+        QuestSupervisorTelemetryJson::BuildTelemetryObject(Payload.Telemetry));
     return EmitJsonMessage(
         TEXT("publish"),
         PayloadObject,
@@ -533,7 +652,7 @@ bool UQuestSupervisorSubsystem::SendHeartbeat(const FQuestSupervisorHeartbeat& H
         FString(),
         false,
         Payload.Timestamp,
-        static_cast<int64>(Payload.Telemetry.SessionElapsedSec * 1000.0f));
+        static_cast<int64>(Payload.Telemetry.SupervisorUptimeSec * 1000.0f));
 }
 
 bool UQuestSupervisorSubsystem::SendLogEntry(const FQuestSupervisorLogEntry& Entry)
@@ -604,17 +723,21 @@ bool UQuestSupervisorSubsystem::SendExperienceLifecycleEvent(const FQuestSupervi
         PayloadObject->SetStringField(TEXT("reason"), Payload.Reason);
     }
 
-    const bool bSent = EmitJsonMessage(TEXT("publish"), PayloadObject, TopicExperienceLifecycle, FString(), false, Payload.Timestamp);
+    FString LifecycleMessageId;
+    const bool bSent = EmitJsonMessage(
+        TEXT("publish"),
+        PayloadObject,
+        TopicExperienceLifecycle,
+        FString(),
+        false,
+        Payload.Timestamp,
+        -1,
+        &LifecycleMessageId);
     if (bSent)
     {
-        if (Payload.Event.Equals(TEXT("started"), ESearchCase::IgnoreCase))
-        {
-            ActiveExperienceRunId = Payload.RunId;
-        }
-        else if (Payload.Event.Equals(TEXT("ended"), ESearchCase::IgnoreCase) && ActiveExperienceRunId == Payload.RunId)
-        {
-            ActiveExperienceRunId.Empty();
-        }
+        PendingExperienceRunId = Payload.RunId;
+        PendingExperienceEvent = Payload.Event.ToLower();
+        PendingExperienceMessageId = LifecycleMessageId;
     }
     return bSent;
 }
@@ -631,14 +754,17 @@ bool UQuestSupervisorSubsystem::StartExperience(const FString& Label, const FStr
 
 bool UQuestSupervisorSubsystem::EndExperience(const FString& Reason)
 {
-    if (ActiveExperienceRunId.IsEmpty())
+    const FString ActiveRunId = TelemetryState.IsValid() && TelemetryState->Experience.IsActive()
+        ? TelemetryState->Experience.GetRunId()
+        : PendingExperienceRunId;
+    if (ActiveRunId.IsEmpty())
     {
         return false;
     }
 
     FQuestSupervisorExperienceLifecycleEvent Event;
     Event.Event = TEXT("ended");
-    Event.RunId = ActiveExperienceRunId;
+    Event.RunId = ActiveRunId;
     Event.Reason = Reason;
     Event.Source = TEXT("xr");
     return SendExperienceLifecycleEvent(Event);
@@ -681,7 +807,7 @@ bool UQuestSupervisorSubsystem::RejectCommand(const FString& CommandId, const FS
 
 bool UQuestSupervisorSubsystem::HandleIncomingMessageJson(const FString& RawJson)
 {
-    return ParseAndDispatchCommand(RawJson);
+    return ParseAndDispatchIncomingMessage(RawJson);
 }
 
 EQuestSupervisorTransportState UQuestSupervisorSubsystem::GetTransportState() const
@@ -765,44 +891,102 @@ bool UQuestSupervisorSubsystem::ConnectTransport()
             return true;
         }
 
+        TSharedPtr<IWebSocket> SocketToClose = ActiveSocket;
+        if (TelemetryState.IsValid())
+        {
+            TelemetryState->Connection.Invalidate();
+        }
         ActiveSocket.Reset();
+        SocketToClose->Close();
     }
 
     StopReconnectLoop();
+    StopCommunicationProbeLoop();
     UpdateTransportState(EQuestSupervisorTransportState::Connecting);
     bIntentionalDisconnect = false;
 
+    ConnectionAuthToken = RuntimeConfig.AuthToken.TrimStartAndEnd();
     const FString SocketUrl = BuildSocketUrl();
     UE_LOG(LogQuestSupervisor, Log, TEXT("QuestSupervisor attempting WebSocket connection to %s"), *BuildSafeEndpointForLog());
 
+    if (!TelemetryState.IsValid())
+    {
+        LastConnectionError = TEXT("Telemetry state is unavailable.");
+        UpdateTransportState(EQuestSupervisorTransportState::Error);
+        return false;
+    }
+
     FModuleManager::LoadModuleChecked<FWebSocketsModule>(TEXT("WebSockets"));
-    ActiveSocket = FWebSocketsModule::Get().CreateWebSocket(SocketUrl);
-    if (!ActiveSocket.IsValid())
+    TSharedPtr<IWebSocket> NewSocket = FWebSocketsModule::Get().CreateWebSocket(SocketUrl);
+    if (!NewSocket.IsValid())
     {
         LastConnectionError = TEXT("Unable to create WebSocket transport.");
         UpdateTransportState(EQuestSupervisorTransportState::Error);
         return false;
     }
 
-    ActiveSocket->OnConnected().AddUObject(this, &UQuestSupervisorSubsystem::HandleSocketConnected);
-    ActiveSocket->OnClosed().AddUObject(this, &UQuestSupervisorSubsystem::HandleSocketClosed);
-    ActiveSocket->OnConnectionError().AddUObject(this, &UQuestSupervisorSubsystem::HandleSocketConnectionError);
-    ActiveSocket->OnMessage().AddUObject(this, &UQuestSupervisorSubsystem::HandleSocketMessage);
-    ActiveSocket->Connect();
+    const uint64 SocketGeneration = TelemetryState->Connection.BeginConnection();
+    const TWeakObjectPtr<UQuestSupervisorSubsystem> WeakThis(this);
+    ActiveSocket = NewSocket;
+    NewSocket->OnConnected().AddLambda(
+        [WeakThis, SocketGeneration]()
+        {
+            if (WeakThis.IsValid())
+            {
+                WeakThis->HandleSocketConnected(SocketGeneration);
+            }
+        });
+    NewSocket->OnClosed().AddLambda(
+        [WeakThis, SocketGeneration](int32 StatusCode, const FString& Reason, bool bWasClean)
+        {
+            if (WeakThis.IsValid())
+            {
+                WeakThis->HandleSocketClosed(SocketGeneration, StatusCode, Reason, bWasClean);
+            }
+        });
+    NewSocket->OnConnectionError().AddLambda(
+        [WeakThis, SocketGeneration](const FString& Error)
+        {
+            if (WeakThis.IsValid())
+            {
+                WeakThis->HandleSocketConnectionError(SocketGeneration, Error);
+            }
+        });
+    NewSocket->OnMessage().AddLambda(
+        [WeakThis, SocketGeneration](const FString& Message)
+        {
+            if (WeakThis.IsValid())
+            {
+                WeakThis->HandleSocketMessage(SocketGeneration, Message);
+            }
+        });
+    NewSocket->Connect();
     return true;
 }
 
-void UQuestSupervisorSubsystem::DisconnectTransport(bool bIntentional)
+void UQuestSupervisorSubsystem::DisconnectTransport(
+    bool bIntentional,
+    bool bPreserveOutgoingMessages)
 {
     bIntentionalDisconnect = bIntentional;
     if (bIntentional)
     {
         ReconnectAttempts = 0;
+        if (!bPreserveOutgoingMessages)
+        {
+            OutgoingMessages.Reset();
+        }
     }
 
     StopHeartbeatLoop();
+    StopCommunicationProbeLoop();
     StopReconnectLoop();
     bIsRegistered = false;
+
+    if (TelemetryState.IsValid())
+    {
+        TelemetryState->Connection.Invalidate();
+    }
 
     if (ActiveSocket.IsValid())
     {
@@ -812,6 +996,10 @@ void UQuestSupervisorSubsystem::DisconnectTransport(bool bIntentional)
     }
 
     UpdateTransportState(EQuestSupervisorTransportState::Disconnected);
+    if (bIntentional && !bPreserveOutgoingMessages)
+    {
+        OutgoingMessages.Reset();
+    }
 }
 
 FString UQuestSupervisorSubsystem::BuildSocketUrl() const
@@ -847,16 +1035,18 @@ bool UQuestSupervisorSubsystem::EmitJsonMessage(
     const FString& CorrelationId,
     bool bRequiresAck,
     const FString& CollectedAt,
-    int64 SessionTimeMs)
+    int64 SessionTimeMs,
+    FString* OutMessageId)
 {
     if (!PayloadObject.IsValid())
     {
         return false;
     }
 
+    const FString MessageId = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower);
     TSharedPtr<FJsonObject> Envelope = MakeShared<FJsonObject>();
     Envelope->SetNumberField(TEXT("version"), 1);
-    Envelope->SetStringField(TEXT("id"), FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower));
+    Envelope->SetStringField(TEXT("id"), MessageId);
     Envelope->SetStringField(TEXT("type"), Type);
     if (!Topic.IsEmpty())
     {
@@ -883,6 +1073,10 @@ bool UQuestSupervisorSubsystem::EmitJsonMessage(
     if (!FJsonSerializer::Serialize(Envelope.ToSharedRef(), Writer))
     {
         return false;
+    }
+    if (OutMessageId)
+    {
+        *OutMessageId = MessageId;
     }
 
     if (CanUseSocket())
@@ -938,13 +1132,14 @@ bool UQuestSupervisorSubsystem::SendSubscribeMessage()
 
     TArray<TSharedPtr<FJsonValue>> Topics;
     Topics.Add(MakeShared<FJsonValueString>(TopicUnrealCommands));
+    Topics.Add(MakeShared<FJsonValueString>(TopicExperienceLifecycle));
 
     TSharedPtr<FJsonObject> PayloadObject = MakeShared<FJsonObject>();
     PayloadObject->SetArrayField(TEXT("topics"), Topics);
     return EmitJsonMessage(TEXT("subscribe"), PayloadObject);
 }
 
-bool UQuestSupervisorSubsystem::ParseAndDispatchCommand(const FString& RawJson)
+bool UQuestSupervisorSubsystem::ParseAndDispatchIncomingMessage(const FString& RawJson)
 {
     TSharedPtr<FJsonObject> RootObject;
     const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(RawJson);
@@ -953,17 +1148,22 @@ bool UQuestSupervisorSubsystem::ParseAndDispatchCommand(const FString& RawJson)
         return false;
     }
 
-    const TSharedPtr<FJsonValue>* TypeValue = RootObject->Values.Find(TEXT("type"));
     FString MessageType;
-    if (!TypeValue || !TypeValue->IsValid())
+    if (!RootObject->TryGetStringField(TEXT("type"), MessageType))
     {
         return false;
     }
-    MessageType = (*TypeValue)->AsString();
+    if (MessageType == TEXT("error"))
+    {
+        return HandleExperienceLifecycleError(RootObject);
+    }
+    if (MessageType != TEXT("publish"))
+    {
+        return false;
+    }
 
     FString Topic;
-    RootObject->TryGetStringField(TEXT("topic"), Topic);
-    if (MessageType != TEXT("publish") || Topic != TopicUnrealCommands)
+    if (!RootObject->TryGetStringField(TEXT("topic"), Topic))
     {
         return false;
     }
@@ -976,6 +1176,31 @@ bool UQuestSupervisorSubsystem::ParseAndDispatchCommand(const FString& RawJson)
 
     const TSharedPtr<FJsonObject> PayloadObject = (*PayloadValue)->AsObject();
     if (!PayloadObject.IsValid())
+    {
+        return false;
+    }
+
+    if (Topic == TopicSystemPong)
+    {
+        return HandleSystemPong(RootObject, PayloadObject);
+    }
+    if (Topic == TopicExperienceLifecycle)
+    {
+        return HandleExperienceLifecycleEcho(PayloadObject);
+    }
+    if (Topic == TopicUnrealCommands)
+    {
+        return DispatchCommand(RootObject, PayloadObject);
+    }
+
+    return false;
+}
+
+bool UQuestSupervisorSubsystem::DispatchCommand(
+    const TSharedPtr<FJsonObject>& RootObject,
+    const TSharedPtr<FJsonObject>& PayloadObject)
+{
+    if (!RootObject.IsValid() || !PayloadObject.IsValid())
     {
         return false;
     }
@@ -1022,6 +1247,116 @@ bool UQuestSupervisorSubsystem::ParseAndDispatchCommand(const FString& RawJson)
     return true;
 }
 
+bool UQuestSupervisorSubsystem::HandleSystemPong(
+    const TSharedPtr<FJsonObject>& RootObject,
+    const TSharedPtr<FJsonObject>& PayloadObject)
+{
+    if (!TelemetryState.IsValid() || !RootObject.IsValid() || !PayloadObject.IsValid())
+    {
+        return false;
+    }
+
+    FString CorrelationId;
+    if (!RootObject->TryGetStringField(TEXT("correlationId"), CorrelationId))
+    {
+        return false;
+    }
+    CorrelationId.TrimStartAndEndInline();
+    if (CorrelationId.IsEmpty())
+    {
+        return false;
+    }
+
+    TOptional<int64> Sequence;
+    double SequenceNumber = 0.0;
+    if (PayloadObject->TryGetNumberField(TEXT("sequence"), SequenceNumber) &&
+        FMath::IsFinite(SequenceNumber) &&
+        SequenceNumber >= 0.0 &&
+        FMath::IsNearlyEqual(SequenceNumber, FMath::RoundToDouble(SequenceNumber)))
+    {
+        Sequence = static_cast<int64>(SequenceNumber);
+    }
+
+    const double ReceivedAtSeconds = FPlatformTime::Seconds();
+    TelemetryState->Probes.ExpireTimedOut(ReceivedAtSeconds);
+    return TelemetryState->Probes.ResolvePong(CorrelationId, Sequence, ReceivedAtSeconds);
+}
+
+bool UQuestSupervisorSubsystem::HandleExperienceLifecycleEcho(const TSharedPtr<FJsonObject>& PayloadObject)
+{
+    if (!TelemetryState.IsValid() || !PayloadObject.IsValid())
+    {
+        return false;
+    }
+
+    FString Event;
+    FString RunId;
+    if (!PayloadObject->TryGetStringField(TEXT("event"), Event) ||
+        !PayloadObject->TryGetStringField(TEXT("runId"), RunId))
+    {
+        return false;
+    }
+
+    Event.TrimStartAndEndInline();
+    RunId.TrimStartAndEndInline();
+    Event = Event.ToLower();
+    if (!TelemetryState->Experience.ObserveLifecycle(Event, RunId, FPlatformTime::Seconds()))
+    {
+        return false;
+    }
+
+    if (PendingExperienceRunId == RunId && PendingExperienceEvent == Event)
+    {
+        PendingExperienceRunId.Reset();
+        PendingExperienceEvent.Reset();
+        PendingExperienceMessageId.Reset();
+    }
+    return true;
+}
+
+bool UQuestSupervisorSubsystem::HandleExperienceLifecycleError(const TSharedPtr<FJsonObject>& RootObject)
+{
+    if (!RootObject.IsValid() || PendingExperienceMessageId.IsEmpty())
+    {
+        return false;
+    }
+
+    FString CorrelationId;
+    if (!RootObject->TryGetStringField(TEXT("correlationId"), CorrelationId) ||
+        CorrelationId != PendingExperienceMessageId)
+    {
+        return false;
+    }
+
+    const TSharedPtr<FJsonObject>* PayloadObject = nullptr;
+    if (!RootObject->TryGetObjectField(TEXT("payload"), PayloadObject) ||
+        !PayloadObject ||
+        !PayloadObject->IsValid())
+    {
+        return false;
+    }
+
+    FString Code;
+    if (!(*PayloadObject)->TryGetStringField(TEXT("code"), Code) ||
+        (!Code.Equals(TEXT("lifecycle_conflict"), ESearchCase::CaseSensitive) &&
+         !Code.Equals(TEXT("lifecycle_already_ended"), ESearchCase::CaseSensitive)))
+    {
+        return false;
+    }
+
+    UE_LOG(
+        LogQuestSupervisor,
+        Warning,
+        TEXT("Hub rejected lifecycle %s for run %s with %s."),
+        *PendingExperienceEvent,
+        *PendingExperienceRunId,
+        *Code);
+    PendingExperienceRunId.Reset();
+    PendingExperienceEvent.Reset();
+    PendingExperienceMessageId.Reset();
+    return true;
+}
+
 void UQuestSupervisorSubsystem::QueueOutgoingMessage(const FString& MessageJson)
 {
     if (OutgoingMessages.Num() >= MaxQueuedMessages)
@@ -1047,8 +1382,13 @@ void UQuestSupervisorSubsystem::FlushOutgoingMessages()
     OutgoingMessages.Reset();
 }
 
-void UQuestSupervisorSubsystem::HandleSocketConnected()
+void UQuestSupervisorSubsystem::HandleSocketConnected(uint64 SocketGeneration)
 {
+    if (!TelemetryState.IsValid() || !TelemetryState->Connection.IsCurrent(SocketGeneration))
+    {
+        return;
+    }
+
     LastConnectionError.Reset();
     UpdateTransportState(EQuestSupervisorTransportState::Connected);
     ReconnectAttempts = 0;
@@ -1061,7 +1401,7 @@ void UQuestSupervisorSubsystem::HandleSocketConnected()
 
         if (bHasHeartbeat)
         {
-            SendHeartbeat(CachedHeartbeat);
+            SendHeartbeat(BuildHeartbeatPayload(nullptr));
         }
 
         SendSystemLog(TEXT("Device transport connected."), EQuestSupervisorLogLevel::Info, TEXT("transport"));
@@ -1069,10 +1409,20 @@ void UQuestSupervisorSubsystem::HandleSocketConnected()
 
     FlushOutgoingMessages();
     StartHeartbeatLoop();
+    StartCommunicationProbeLoop();
 }
 
-void UQuestSupervisorSubsystem::HandleSocketClosed(int32 StatusCode, const FString& Reason, bool bWasClean)
+void UQuestSupervisorSubsystem::HandleSocketClosed(
+    uint64 SocketGeneration,
+    int32 StatusCode,
+    const FString& Reason,
+    bool bWasClean)
 {
+    if (!TelemetryState.IsValid() || !TelemetryState->Connection.IsCurrent(SocketGeneration))
+    {
+        return;
+    }
+
     UE_LOG(
         LogQuestSupervisor,
         Warning,
@@ -1081,8 +1431,10 @@ void UQuestSupervisorSubsystem::HandleSocketClosed(int32 StatusCode, const FStri
         bWasClean ? TEXT("true") : TEXT("false"),
         Reason.IsEmpty() ? TEXT("<empty>") : *Reason);
 
+    TelemetryState->Connection.Invalidate();
     ActiveSocket.Reset();
     StopHeartbeatLoop();
+    StopCommunicationProbeLoop();
     bIsRegistered = false;
 
     if (bIntentionalDisconnect || SupervisorEndpoint.IsEmpty())
@@ -1095,12 +1447,17 @@ void UQuestSupervisorSubsystem::HandleSocketClosed(int32 StatusCode, const FStri
         ? FString::Printf(TEXT("WebSocket closed with status %d."), StatusCode)
         : Reason;
 
-    UpdateTransportState(EQuestSupervisorTransportState::Connecting);
     ScheduleReconnect();
+    UpdateTransportState(EQuestSupervisorTransportState::Connecting);
 }
 
-void UQuestSupervisorSubsystem::HandleSocketConnectionError(const FString& Error)
+void UQuestSupervisorSubsystem::HandleSocketConnectionError(uint64 SocketGeneration, const FString& Error)
 {
+    if (!TelemetryState.IsValid() || !TelemetryState->Connection.IsCurrent(SocketGeneration))
+    {
+        return;
+    }
+
     UE_LOG(
         LogQuestSupervisor,
         Error,
@@ -1108,20 +1465,27 @@ void UQuestSupervisorSubsystem::HandleSocketConnectionError(const FString& Error
         *BuildSafeEndpointForLog(),
         Error.IsEmpty() ? TEXT("<empty>") : *Error);
 
+    TelemetryState->Connection.Invalidate();
     ActiveSocket.Reset();
     StopHeartbeatLoop();
+    StopCommunicationProbeLoop();
     bIsRegistered = false;
     LastConnectionError = Error;
-    UpdateTransportState(EQuestSupervisorTransportState::Error);
 
     if (!bIntentionalDisconnect && !SupervisorEndpoint.IsEmpty())
     {
         ScheduleReconnect();
     }
+    UpdateTransportState(EQuestSupervisorTransportState::Error);
 }
 
-void UQuestSupervisorSubsystem::HandleSocketMessage(const FString& Message)
+void UQuestSupervisorSubsystem::HandleSocketMessage(uint64 SocketGeneration, const FString& Message)
 {
+    if (!TelemetryState.IsValid() || !TelemetryState->Connection.IsCurrent(SocketGeneration))
+    {
+        return;
+    }
+
     HandleIncomingMessageJson(Message);
 }
 
@@ -1157,6 +1521,123 @@ bool UQuestSupervisorSubsystem::HandleHeartbeatTick(float DeltaTime)
 
     const FQuestSupervisorHeartbeat Heartbeat = BuildHeartbeatPayload(nullptr);
     SendHeartbeat(Heartbeat);
+    return true;
+}
+
+void UQuestSupervisorSubsystem::StartTelemetrySampling()
+{
+    if (TelemetryTickerHandle.IsValid())
+    {
+        return;
+    }
+
+    TelemetryTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+        FTickerDelegate::CreateUObject(this, &UQuestSupervisorSubsystem::HandleTelemetryTick),
+        0.0f);
+}
+
+void UQuestSupervisorSubsystem::StopTelemetrySampling()
+{
+    if (!TelemetryTickerHandle.IsValid())
+    {
+        return;
+    }
+
+    FTSTicker::GetCoreTicker().RemoveTicker(TelemetryTickerHandle);
+    TelemetryTickerHandle.Reset();
+}
+
+bool UQuestSupervisorSubsystem::HandleTelemetryTick(float DeltaTime)
+{
+    if (TelemetryState.IsValid())
+    {
+        TelemetryState->FrameRate.AddFrame(static_cast<double>(DeltaTime));
+    }
+    return true;
+}
+
+void UQuestSupervisorSubsystem::StartCommunicationProbeLoop()
+{
+    StopCommunicationProbeLoop();
+    if (!TelemetryState.IsValid() || !bHasRegistration || !CanUseSocket())
+    {
+        return;
+    }
+
+    const double NowSeconds = FPlatformTime::Seconds();
+    SendCommunicationProbe(NowSeconds, false);
+    NextProbeSendSeconds = NowSeconds + FQuestSupervisorProbeWindow::SendIntervalSeconds;
+    CommunicationProbeTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+        FTickerDelegate::CreateUObject(this, &UQuestSupervisorSubsystem::HandleCommunicationProbeTick),
+        CommunicationProbeTickSeconds);
+}
+
+void UQuestSupervisorSubsystem::StopCommunicationProbeLoop()
+{
+    if (CommunicationProbeTickerHandle.IsValid())
+    {
+        FTSTicker::GetCoreTicker().RemoveTicker(CommunicationProbeTickerHandle);
+        CommunicationProbeTickerHandle.Reset();
+    }
+
+    NextProbeSendSeconds = 0.0;
+    if (TelemetryState.IsValid())
+    {
+        TelemetryState->Probes.Reset();
+    }
+}
+
+bool UQuestSupervisorSubsystem::HandleCommunicationProbeTick(float DeltaTime)
+{
+    if (!TelemetryState.IsValid() || !CanUseSocket())
+    {
+        return true;
+    }
+
+    const double NowSeconds = FPlatformTime::Seconds();
+    TelemetryState->Probes.ExpireTimedOut(NowSeconds);
+    if (NowSeconds >= NextProbeSendSeconds)
+    {
+        SendCommunicationProbe(NowSeconds, true);
+        NextProbeSendSeconds = NowSeconds + FQuestSupervisorProbeWindow::SendIntervalSeconds;
+    }
+    return true;
+}
+
+bool UQuestSupervisorSubsystem::SendCommunicationProbe(double SentAtSeconds, bool bTrackResult)
+{
+    if (!TelemetryState.IsValid() || !CanUseSocket() || CachedRegistration.DeviceId.IsEmpty())
+    {
+        return false;
+    }
+
+    const FString MessageId = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower);
+    const int64 Sequence = TelemetryState->Probes.NextSequence();
+
+    TSharedPtr<FJsonObject> PayloadObject = MakeShared<FJsonObject>();
+    PayloadObject->SetNumberField(TEXT("sequence"), static_cast<double>(Sequence));
+
+    TSharedPtr<FJsonObject> Envelope = MakeShared<FJsonObject>();
+    Envelope->SetNumberField(TEXT("version"), 1);
+    Envelope->SetStringField(TEXT("id"), MessageId);
+    Envelope->SetStringField(TEXT("type"), TEXT("publish"));
+    Envelope->SetStringField(TEXT("topic"), TopicSystemPing);
+    Envelope->SetStringField(TEXT("clientId"), CachedRegistration.DeviceId);
+    Envelope->SetBoolField(TEXT("requiresAck"), false);
+    Envelope->SetObjectField(TEXT("payload"), PayloadObject);
+
+    FString OutJson;
+    const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutJson);
+    if (!FJsonSerializer::Serialize(Envelope.ToSharedRef(), Writer))
+    {
+        return false;
+    }
+
+    if (bTrackResult)
+    {
+        TelemetryState->Probes.AddPending(MessageId, Sequence, SentAtSeconds);
+    }
+    ActiveSocket->Send(OutJson);
     return true;
 }
 
@@ -1256,32 +1737,138 @@ FQuestSupervisorHeartbeat UQuestSupervisorSubsystem::BuildHeartbeatPayload(const
         Payload.Timestamp = MakeIsoTimestamp();
     }
 
-    RefreshAutomaticTelemetry(Payload);
+    const bool bExplicitV2Telemetry = SourceHeartbeat &&
+        Payload.Telemetry.SchemaVersion >= 2 &&
+        Payload.Telemetry.Availability.Num() > 0;
+    if (!SourceHeartbeat)
+    {
+        RefreshAutomaticTelemetry(Payload);
+    }
+    else if (!bExplicitV2Telemetry)
+    {
+        // Blueprints created before telemetry V2 remain legacy unless they provide availability explicitly.
+        Payload.Telemetry.SchemaVersion = 1;
+    }
     return Payload;
 }
 
 void UQuestSupervisorSubsystem::RefreshAutomaticTelemetry(FQuestSupervisorHeartbeat& Payload) const
 {
-    Payload.Telemetry.SessionElapsedSec = GetSessionElapsedSeconds();
+    Payload.Telemetry.SchemaVersion = 2;
+    Payload.Telemetry.Context.Source = TEXT("quest-supervisor-plugin");
+    Payload.Telemetry.Context.Origin = TEXT("automatic");
+    Payload.Telemetry.Context.Platform = GetTelemetryPlatform();
+    Payload.Telemetry.Context.ExecutionMode = GetTelemetryExecutionMode();
+    Payload.Telemetry.Availability.Reset();
+
+    Payload.Telemetry.SupervisorUptimeSec = GetSupervisorUptimeSeconds();
+    Payload.Telemetry.SessionElapsedSec = Payload.Telemetry.SupervisorUptimeSec;
+    Payload.Telemetry.ExperienceElapsedSec = GetExperienceElapsedSeconds();
     Payload.Telemetry.FPS = GetCurrentFramesPerSecond();
+    Payload.Telemetry.LatencyMs = 0.0f;
+    Payload.Telemetry.PacketLossPct = 0.0f;
+    Payload.Telemetry.BatteryPct = 0.0f;
+    Payload.Telemetry.CpuPct = 0.0f;
+    Payload.Telemetry.GpuPct = 0.0f;
     Payload.Telemetry.MemoryMb = GetUsedMemoryMegabytes();
+    Payload.Telemetry.BatteryTemperatureC = 0.0f;
+    Payload.Telemetry.TemperatureC = 0.0f;
+
+    Payload.Telemetry.Availability.Add(
+        TEXT("supervisorUptimeSec"),
+        SessionStartSeconds > 0.0
+            ? AvailableMetric(TEXT("monotonic-clock"))
+            : UnavailableMetric(TEXT("warming-up")));
+    Payload.Telemetry.Availability.Add(
+        TEXT("experienceElapsedSec"),
+        TelemetryState.IsValid() && TelemetryState->Experience.IsActive()
+            ? AvailableMetric(TEXT("experience-lifecycle"))
+            : UnavailableMetric(TEXT("no-active-experience")));
+    Payload.Telemetry.Availability.Add(
+        TEXT("fps"),
+        TelemetryState.IsValid() && TelemetryState->FrameRate.HasSample()
+            ? AvailableMetric(TEXT("engine-frame-window"))
+            : UnavailableMetric(TEXT("warming-up")));
+
+    const bool bHasRtt = TelemetryState.IsValid() && TelemetryState->Probes.HasSuccessfulSample();
+    if (bHasRtt)
+    {
+        Payload.Telemetry.LatencyMs = TelemetryState->Probes.GetLatestRttMs();
+        Payload.Telemetry.Availability.Add(
+            TEXT("latencyMs"),
+            AvailableMetric(TEXT("websocket-application-probe")));
+    }
+    else
+    {
+        const bool bAnyProbeResolved = TelemetryState.IsValid() &&
+            TelemetryState->Probes.GetCompletedSampleCount() > 0;
+        Payload.Telemetry.Availability.Add(
+            TEXT("latencyMs"),
+            UnavailableMetric(bAnyProbeResolved ? TEXT("probe-timeout") : TEXT("warming-up")));
+    }
+
+    const bool bLossWindowReady = TelemetryState.IsValid() && TelemetryState->Probes.HasMinimumSamples();
+    if (bLossWindowReady)
+    {
+        Payload.Telemetry.PacketLossPct = TelemetryState->Probes.GetPacketLossPct();
+        Payload.Telemetry.Availability.Add(
+            TEXT("packetLossPct"),
+            AvailableMetric(TEXT("websocket-application-probe")));
+    }
+    else
+    {
+        Payload.Telemetry.Availability.Add(
+            TEXT("packetLossPct"),
+            UnavailableMetric(TEXT("warming-up")));
+    }
+
+    Payload.Telemetry.Availability.Add(TEXT("cpuPct"), UnavailableMetric(TEXT("not-implemented")));
+    Payload.Telemetry.Availability.Add(TEXT("gpuPct"), UnavailableMetric(TEXT("not-implemented")));
+    Payload.Telemetry.Availability.Add(
+        TEXT("memoryMb"),
+        Payload.Telemetry.MemoryMb > 0.0f
+            ? AvailableMetric(TEXT("platform-memory"))
+            : UnavailableMetric(TEXT("read-failed")));
 
     FQuestSupervisorBatteryTelemetry BatteryTelemetry;
-    if (AndroidBridge.ReadBatteryTelemetry(BatteryTelemetry))
+    AndroidBridge.ReadBatteryTelemetry(BatteryTelemetry);
+    if (BatteryTelemetry.bHasBatteryPct)
     {
-        if (BatteryTelemetry.bHasBatteryPct)
-        {
-            Payload.Telemetry.BatteryPct = BatteryTelemetry.BatteryPct;
-        }
+        Payload.Telemetry.BatteryPct = BatteryTelemetry.BatteryPct;
+        Payload.Telemetry.Availability.Add(TEXT("batteryPct"), AvailableMetric(TEXT("android-battery")));
+    }
+    else
+    {
+#if PLATFORM_ANDROID
+        Payload.Telemetry.Availability.Add(TEXT("batteryPct"), UnavailableMetric(TEXT("read-failed")));
+#else
+        Payload.Telemetry.Availability.Add(TEXT("batteryPct"), UnavailableMetric(TEXT("unsupported-platform")));
+#endif
+    }
 
-        if (BatteryTelemetry.bHasTemperatureC)
-        {
-            Payload.Telemetry.TemperatureC = BatteryTelemetry.TemperatureC;
-        }
+    if (BatteryTelemetry.bHasTemperatureC)
+    {
+        Payload.Telemetry.BatteryTemperatureC = BatteryTelemetry.TemperatureC;
+        Payload.Telemetry.TemperatureC = Payload.Telemetry.BatteryTemperatureC;
+        Payload.Telemetry.Availability.Add(
+            TEXT("batteryTemperatureC"),
+            AvailableMetric(TEXT("android-battery")));
+    }
+    else
+    {
+#if PLATFORM_ANDROID
+        Payload.Telemetry.Availability.Add(
+            TEXT("batteryTemperatureC"),
+            UnavailableMetric(TEXT("read-failed")));
+#else
+        Payload.Telemetry.Availability.Add(
+            TEXT("batteryTemperatureC"),
+            UnavailableMetric(TEXT("unsupported-platform")));
+#endif
     }
 }
 
-float UQuestSupervisorSubsystem::GetSessionElapsedSeconds() const
+float UQuestSupervisorSubsystem::GetSupervisorUptimeSeconds() const
 {
     if (SessionStartSeconds <= 0.0)
     {
@@ -1291,15 +1878,16 @@ float UQuestSupervisorSubsystem::GetSessionElapsedSeconds() const
     return static_cast<float>(FMath::Max(0.0, FPlatformTime::Seconds() - SessionStartSeconds));
 }
 
+float UQuestSupervisorSubsystem::GetExperienceElapsedSeconds() const
+{
+    return TelemetryState.IsValid()
+        ? TelemetryState->Experience.GetElapsedSeconds(FPlatformTime::Seconds())
+        : 0.0f;
+}
+
 float UQuestSupervisorSubsystem::GetCurrentFramesPerSecond() const
 {
-    const float DeltaTime = FApp::GetDeltaTime();
-    if (DeltaTime <= KINDA_SMALL_NUMBER)
-    {
-        return 0.0f;
-    }
-
-    return 1.0f / DeltaTime;
+    return TelemetryState.IsValid() ? TelemetryState->FrameRate.GetFramesPerSecond() : 0.0f;
 }
 
 float UQuestSupervisorSubsystem::GetUsedMemoryMegabytes() const
@@ -1385,9 +1973,12 @@ FQuestSupervisorExperienceLifecycleEvent UQuestSupervisorSubsystem::BuildExperie
 
     if (Payload.RunId.IsEmpty())
     {
-        if (Payload.Event.Equals(TEXT("ended"), ESearchCase::IgnoreCase) && !ActiveExperienceRunId.IsEmpty())
+        const FString ActiveRunId = TelemetryState.IsValid() && TelemetryState->Experience.IsActive()
+            ? TelemetryState->Experience.GetRunId()
+            : PendingExperienceRunId;
+        if (Payload.Event.Equals(TEXT("ended"), ESearchCase::IgnoreCase) && !ActiveRunId.IsEmpty())
         {
-            Payload.RunId = ActiveExperienceRunId;
+            Payload.RunId = ActiveRunId;
         }
         else
         {

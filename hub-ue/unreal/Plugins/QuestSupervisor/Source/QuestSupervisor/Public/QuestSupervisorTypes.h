@@ -108,9 +108,51 @@ struct FQuestSupervisorRuntimeConfig
 };
 
 USTRUCT(BlueprintType)
+struct FQuestSupervisorTelemetryContext
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "QuestSupervisor")
+    FString Source = TEXT("quest-supervisor-plugin");
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "QuestSupervisor")
+    FString Origin = TEXT("automatic");
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "QuestSupervisor")
+    FString Platform;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "QuestSupervisor")
+    FString ExecutionMode;
+};
+
+USTRUCT(BlueprintType)
+struct FQuestSupervisorTelemetryMetricAvailability
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "QuestSupervisor")
+    FString Status = TEXT("unavailable");
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "QuestSupervisor")
+    FString Source;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "QuestSupervisor")
+    FString Reason;
+};
+
+USTRUCT(BlueprintType)
 struct FQuestSupervisorTelemetrySnapshot
 {
     GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "QuestSupervisor")
+    int32 SchemaVersion = 1;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "QuestSupervisor")
+    FQuestSupervisorTelemetryContext Context;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "QuestSupervisor")
+    TMap<FString, FQuestSupervisorTelemetryMetricAvailability> Availability;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "QuestSupervisor")
     float FPS = 0.0f;
@@ -134,10 +176,19 @@ struct FQuestSupervisorTelemetrySnapshot
     float TemperatureC = 0.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "QuestSupervisor")
+    float BatteryTemperatureC = 0.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "QuestSupervisor")
     float PacketLossPct = 0.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "QuestSupervisor")
     float SessionElapsedSec = 0.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "QuestSupervisor")
+    float SupervisorUptimeSec = 0.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "QuestSupervisor")
+    float ExperienceElapsedSec = 0.0f;
 };
 
 USTRUCT(BlueprintType)

@@ -10,6 +10,15 @@ POLAR_WS="ws://localhost:8765/stream"
 POLAR_CONTROL_WS="ws://localhost:8765/control"
 HUB_WS="ws://127.0.0.1:8787/ws"
 
+echo "Starting Polar H10 driver..."
+gnome-terminal -- bash -c "
+cd '$POLAR_DRIVER_DIR'
+source venv/bin/activate
+python main.py
+exec bash
+"
+
+sleep 8
 
 echo "Starting Biofeedback Hub..."
 gnome-terminal -- bash -c "

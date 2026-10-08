@@ -23,6 +23,19 @@ class StatusClientTest(unittest.TestCase):
                         "outboxSize": 0,
                     }
                 ],
+                "sensorManager": {
+                    "sensorCount": 1,
+                    "adapterCount": 1,
+                    "recordingCount": 0,
+                    "sensors": [
+                        {
+                            "sensorId": "sim-hrv-1",
+                            "adapterId": "simulator",
+                            "state": "connected",
+                            "topics": ["hrv.raw"],
+                        }
+                    ],
+                },
                 "pendingAcks": [
                     {
                         "messageId": "cmd-1",
@@ -36,6 +49,8 @@ class StatusClientTest(unittest.TestCase):
         self.assertIn("session-test", output)
         self.assertIn("quest", output)
         self.assertIn("unreal.commands", output)
+        self.assertIn("sim-hrv-1", output)
+        self.assertIn("sensor manager", output.lower())
         self.assertIn("cmd-1", output)
 
 

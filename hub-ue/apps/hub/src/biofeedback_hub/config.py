@@ -15,6 +15,11 @@ class HubConfig:
     local_token: str | None = None
     client_tokens: dict[str, str] | None = None
     cors_origins: list[str] | None = None
+    lsl_enabled: bool = True
+    lsl_discovery_timeout_seconds: float = 1.0
+    lsl_pull_timeout_seconds: float = 0.1
+    lsl_time_correction_timeout_seconds: float = 2.0
+    lsl_max_chunk_samples: int = 256
 
 
 def load_config() -> HubConfig:
@@ -31,6 +36,17 @@ def load_config() -> HubConfig:
                 "http://localhost:5173,http://127.0.0.1:5173",
             )
         ),
+        lsl_enabled=parse_bool(os.getenv("BIOFEEDBACK_LSL_ENABLED"), default=True),
+        lsl_discovery_timeout_seconds=float(
+            os.getenv("BIOFEEDBACK_LSL_DISCOVERY_TIMEOUT_SECONDS", "1.0")
+        ),
+        lsl_pull_timeout_seconds=float(
+            os.getenv("BIOFEEDBACK_LSL_PULL_TIMEOUT_SECONDS", "0.1")
+        ),
+        lsl_time_correction_timeout_seconds=float(
+            os.getenv("BIOFEEDBACK_LSL_TIME_CORRECTION_TIMEOUT_SECONDS", "2.0")
+        ),
+        lsl_max_chunk_samples=int(os.getenv("BIOFEEDBACK_LSL_MAX_CHUNK_SAMPLES", "256")),
     )
 
 
@@ -54,6 +70,17 @@ def parse_csv(raw: str | None) -> list[str]:
     if not raw:
         return []
     return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def parse_bool(raw: str | None, *, default: bool) -> bool:
+    if raw is None:
+        return default
+    normalized = raw.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
 
 
 def default_session_id() -> str:

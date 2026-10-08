@@ -118,12 +118,13 @@ class TopicBrokerTest(unittest.IsolatedAsyncioTestCase):
         )
         await broker.publish(command)
 
-        self.assertTrue(await broker.acknowledge(command.id, "quest", status="accepted"))
+        self.assertTrue(await broker.acknowledge(command.id, "quest", status="accepted", detail="ok"))
         ack = await asyncio.wait_for(controller.outbox.get(), timeout=1)
         self.assertEqual(ack.type, MessageType.ACK)
         self.assertEqual(ack.correlationId, command.id)
         self.assertEqual(ack.payload["messageId"], command.id)
         self.assertEqual(ack.payload["clientId"], "quest")
+        self.assertEqual(ack.payload["detail"], "ok")
 
     async def test_snapshot_lists_clients_subscriptions_and_pending_acks(self) -> None:
         broker = TopicBroker()
@@ -163,6 +164,61 @@ class TopicBrokerTest(unittest.IsolatedAsyncioTestCase):
                 }
             ],
         )
+
+    async def test_dashboard_outbox_coalesces_visual_topics_but_keeps_reliable_fifo(self) -> None:
+        broker = TopicBroker()
+        dashboard = await broker.connect(ClientHello(clientId="dashboard", role=ClientRole.DASHBOARD))
+        await broker.subscribe("dashboard", {"hrv.raw", "sensor.status"})
+
+        await broker.publish(
+            MessageEnvelope(
+                type=MessageType.PUBLISH,
+                clientId="sensor-manager",
+                topic="hrv.raw",
+                payload={"sensorId": "polar", "sequence": 1},
+            )
+        )
+        await broker.publish(
+            MessageEnvelope(
+                type=MessageType.PUBLISH,
+                clientId="sensor-manager",
+                topic="hrv.raw",
+                payload={"sensorId": "polar", "sequence": 2},
+            )
+        )
+        await broker.publish(
+            MessageEnvelope(
+                type=MessageType.PUBLISH,
+                clientId="sensor-manager",
+                topic="sensor.status",
+                payload={"event": "connected"},
+            )
+        )
+
+        self.assertEqual((await dashboard.outbox.get()).topic, "sensor.status")
+        latest = await dashboard.outbox.get()
+        self.assertEqual(latest.payload["sequence"], 2)
+        self.assertEqual(dashboard.outbox.snapshot()["coalescedCount"], 1)
+
+    async def test_reliable_outbox_overflow_closes_slow_consumer(self) -> None:
+        broker = TopicBroker()
+        dashboard = await broker.connect(ClientHello(clientId="dashboard", role=ClientRole.DASHBOARD))
+        dashboard.outbox.max_reliable = 1
+        dashboard.outbox._reliable = asyncio.Queue(maxsize=1)
+        await broker.subscribe("dashboard", {"sensor.status"})
+
+        message = MessageEnvelope(
+            type=MessageType.PUBLISH,
+            clientId="sensor-manager",
+            topic="sensor.status",
+            payload={"event": "connected"},
+        )
+        await broker.publish(message)
+        delivered = await broker.publish(message.model_copy(update={"id": "second"}))
+
+        self.assertEqual(delivered, [])
+        self.assertIsNone(broker.get_client("dashboard"))
+        self.assertEqual(dashboard.outbox.snapshot()["closeReason"], "slow_consumer")
 
 
 if __name__ == "__main__":

@@ -14,7 +14,7 @@ Guia curto para agentes e colaboradores. Para contexto do produto, leia `README.
 
 - `apps/hub`: hub Python, schemas, broker, logger, CLIs e simuladores.
 - `apps/hub/tests`: testes automatizados do hub.
-- `apps/dashboard`: dashboard Vite/React para operacao local, diagnostico e report.
+- `apps/dashboard`: dashboard Vite/React para operacao local, diagnostico e report. Codigo em `src/app` (casca e hooks), `src/features` (telas), `src/components`, `src/domain` (logica pura testada) e `src/styles`; ver `apps/dashboard/README.md`.
 - `docs`: arquitetura, protocolo, integracao Unreal e releases.
 - `unreal/Plugins/QuestSupervisor`: plugin Unreal canonico.
 - `unreal/QuestSupervisorHost`: projeto host para validacao local.
@@ -47,10 +47,18 @@ Verificacao Python:
 .\.venv\Scripts\python -m compileall -q apps\hub\src apps\hub\tests
 ```
 
-Lint:
+Dashboard (typecheck, lint, testes e build):
+
+```powershell
+npm install
+npm run check:dashboard
+npm run build:dashboard
+```
+
+Lint Python:
 
 ```text
-TODO: comando de lint nao encontrado.
+TODO: comando de lint Python nao encontrado.
 ```
 
 Build/package do plugin Unreal:
