@@ -20,10 +20,13 @@ export function Sidebar({ activeView, hubEndpoint, onNavigate }: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="brand-block">
-        <p className="product-mark">Biofeedback Hub</p>
-        <p className="operator-id" title={`Hub em ${hubEndpoint}`}>
-          hub {endpointHost(hubEndpoint)}
-        </p>
+        <img src="/logo.png" alt="Logo Biofeedback Hub" className="brand-logo" />
+        <div className="brand-copy">
+          <p className="product-mark">Biofeedback Hub</p>
+          <p className="operator-id" title={`Hub em ${hubEndpoint}`}>
+            hub {endpointHost(hubEndpoint)}
+          </p>
+        </div>
       </div>
       <nav className="nav-list" aria-label="Seções do dashboard">
         {NAV_GROUPS.map((group) => (
