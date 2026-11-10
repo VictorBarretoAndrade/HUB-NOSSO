@@ -3,6 +3,7 @@ import { ErrorBoundary } from "../components/ErrorBoundary";
 import { ToastRegion } from "../components/ToastRegion";
 import type { SessionControlTab } from "../domain/sessionControlUi";
 import { ClientsView } from "../features/clients/ClientsView";
+import { CreditsView } from "../features/credits/CreditsView";
 import { DiagnosticsView } from "../features/diagnostics/DiagnosticsView";
 import { GuideView } from "../features/guide/GuideView";
 import { LiveView } from "../features/live/LiveView";
@@ -152,6 +153,7 @@ export function App() {
             />
           )}
           {route.view === "guide" && <GuideView onNavigate={navigateToView} />}
+          {route.view === "credits" && <CreditsView />}
         </ErrorBoundary>
       </main>
 

@@ -27,5 +27,6 @@ describe("navigation", () => {
     const ids = NAV_GROUPS.flatMap((group) => group.items.map((item) => item.id));
     expect(new Set(ids).size).toBe(ids.length);
     expect(navItem("diagnostics").title).toBe("Diagnóstico do sistema");
+    expect(navItem("credits").title).toBe("Créditos do projeto");
   });
 });

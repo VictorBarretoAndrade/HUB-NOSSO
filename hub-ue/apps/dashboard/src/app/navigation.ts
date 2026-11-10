@@ -1,4 +1,4 @@
-import { Activity, BookOpen, Command, Database, FileText, Gauge, Settings, UserPlus, Users } from "lucide-react";
+import { Activity, Award, BookOpen, Command, Database, FileText, Gauge, Settings, UserPlus, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { SessionControlTab } from "../domain/sessionControlUi";
 
@@ -11,7 +11,8 @@ export type View =
   | "clients"
   | "topics"
   | "diagnostics"
-  | "guide";
+  | "guide"
+  | "credits";
 
 export interface NavItem {
   id: View;
@@ -115,6 +116,13 @@ export const NAV_GROUPS: NavGroup[] = [
         title: "Guia de uso",
         description: "Passo a passo de uma sessão e o papel de cada tela.",
         icon: BookOpen,
+      },
+      {
+        id: "credits",
+        label: "Créditos",
+        title: "Créditos do projeto",
+        description: "Empresa demandante, coordenação, orientadores e equipe de desenvolvimento.",
+        icon: Award,
       },
     ],
   },

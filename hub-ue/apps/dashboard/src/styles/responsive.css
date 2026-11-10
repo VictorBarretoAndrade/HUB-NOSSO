@@ -12,6 +12,7 @@
   .overview-grid,
   .session-grid,
   .diagnostics-grid,
+  .credits-grid,
   .clients-layout,
   .topics-layout {
     grid-template-columns: minmax(0, 1fr);

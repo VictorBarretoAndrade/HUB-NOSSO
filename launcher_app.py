@@ -117,6 +117,12 @@ setup_python_paths()
 class SpaRequestHandler(SimpleHTTPRequestHandler):
     """Serve o build estático do Dashboard React com fallback SPA para index.html."""
 
+    def end_headers(self) -> None:
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
+        super().end_headers()
+
     def do_GET(self) -> None:
         request_path = self.path.split("?", 1)[0].split("#", 1)[0]
         full_path = Path(self.translate_path(request_path))
@@ -958,7 +964,7 @@ class BiofeedbackLauncherApp:
     # -----------------------------------------------------------------------
 
     def open_dashboard_browser(self) -> None:
-        url = f"http://127.0.0.1:{self.dashboard_port}"
+        url = f"http://127.0.0.1:{self.dashboard_port}/?v={int(time.time())}"
         webbrowser.open(url)
 
     def refresh_sessions_list(self) -> None:
