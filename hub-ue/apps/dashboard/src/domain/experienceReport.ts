@@ -9,6 +9,7 @@ import {
 import type { AnalyticSessionTimelineItem, ExperienceRunState } from "./experienceRun";
 import type { SensorSignalState } from "./sensorTelemetry";
 import type { SubjectSnapshot } from "./subjectProfile";
+import type { SubjectSurveyRecord } from "./surveys";
 import type { StreamEvent } from "./types";
 
 export interface ExperienceReport {
@@ -129,6 +130,8 @@ export interface ReportExportEnvelopeV1 {
   /** Contexto fisiológico opcional: campos opcionais mantêm o schemaVersion 1 retrocompatível. */
   subject?: SubjectSnapshot;
   capture?: CaptureProfile;
+  /** Formulários psicométricos da sessão (SUS, IPQ, CSQ-VR, UTAUT2, Sentimento). */
+  surveys?: SubjectSurveyRecord;
   summary: ExperienceReport["summary"];
   report: ExperienceReport;
   analytics: ExperienceAnalytics;
@@ -142,6 +145,7 @@ export interface ReportExportOptions {
   commandHistory?: CommandHistoryItem[];
   subject?: SubjectSnapshot;
   capture?: CaptureProfile;
+  surveys?: SubjectSurveyRecord;
 }
 
 interface HrvReportSample {
@@ -229,6 +233,7 @@ export function buildReportExportEnvelope(
     exportedAt,
     subject: options.subject,
     capture: options.capture,
+    ...(options.surveys ? { surveys: options.surveys } : {}),
     summary: report.summary,
     report,
     analytics: report.analytics,

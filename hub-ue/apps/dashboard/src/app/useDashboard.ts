@@ -14,6 +14,14 @@ import { latestExperienceMarker } from "../domain/markers";
 import { deriveManagedSensors, sensorPublishTopics } from "../domain/sensorManager";
 import { deriveSensorDataStream, deriveSensorTelemetrySummaries, serializeSensorDataStreamJson } from "../domain/sensorTelemetry";
 import { deriveSessionState } from "../domain/sessionState";
+import {
+  createSampleSurveyRecords,
+  deleteSurveyRecord,
+  loadSurveyRecords,
+  saveSurveyRecords,
+  upsertSurveyRecord,
+} from "../domain/surveys";
+import type { SubjectSurveyRecord } from "../domain/surveys";
 import { TOPICS } from "../domain/topics";
 import type { StreamEvent } from "../domain/types";
 import { downloadTextFile, fileTimestamp } from "../lib/download";
@@ -44,6 +52,9 @@ export function useDashboard() {
   const settings = useHubSettings();
   const setup = useSessionSetup();
   const { toasts, notify, dismiss: dismissToast } = useToasts();
+  const [surveyRecords, setSurveyRecords] = useState<SubjectSurveyRecord[]>(() => {
+    return loadSurveyRecords(browserStorage);
+  });
   const [restoredSession] = useState(() => loadExperienceSession(browserStorage));
   const runRef = useRef<ExperienceRunState>(restoredSession?.experienceRun ?? resetExperienceRun());
   // O socket e o polling nascem antes do lifecycle; os callbacks o alcançam por esta ref.
@@ -177,6 +188,41 @@ export function useDashboard() {
     notify(`Arquivo ${filename} exportado.`);
   }, [notify, sensorDataStream]);
 
+  const upsertSurvey = useCallback((record: SubjectSurveyRecord) => {
+    setSurveyRecords((prev) => {
+      const next = upsertSurveyRecord(prev, record);
+      saveSurveyRecords(browserStorage, next);
+      return next;
+    });
+  }, []);
+
+  const deleteSurvey = useCallback((id: string) => {
+    setSurveyRecords((prev) => {
+      const next = deleteSurveyRecord(prev, id);
+      saveSurveyRecords(browserStorage, next);
+      return next;
+    });
+  }, []);
+
+  const importSurveyRecords = useCallback((incoming: SubjectSurveyRecord[], replace = false) => {
+    setSurveyRecords((prev) => {
+      const next = replace ? incoming : [...incoming, ...prev];
+      saveSurveyRecords(browserStorage, next);
+      return next;
+    });
+  }, []);
+
+  const loadSampleSurveys = useCallback(() => {
+    const sample = createSampleSurveyRecords();
+    saveSurveyRecords(browserStorage, sample);
+    setSurveyRecords(sample);
+  }, []);
+
+  const clearAllSurveys = useCallback(() => {
+    saveSurveyRecords(browserStorage, []);
+    setSurveyRecords([]);
+  }, []);
+
   return {
     settings,
     setup,
@@ -196,6 +242,12 @@ export function useDashboard() {
     latestMarker,
     addMarker,
     exportSensorDataStream,
+    surveyRecords,
+    upsertSurvey,
+    deleteSurvey,
+    importSurveyRecords,
+    loadSampleSurveys,
+    clearAllSurveys,
     toasts,
     notify,
     dismissToast,

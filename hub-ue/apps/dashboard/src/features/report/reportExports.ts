@@ -11,6 +11,7 @@ import type { ExperienceReport } from "../../domain/experienceReport";
 import { serializeExperienceRunCsv } from "../../domain/experienceRun";
 import type { AnalyticSessionTimelineItem, ExperienceRunState } from "../../domain/experienceRun";
 import type { SubjectSnapshot } from "../../domain/subjectProfile";
+import type { SubjectSurveyRecord } from "../../domain/surveys";
 import { fileTimestamp } from "../../lib/download";
 
 export type ReportFormat = "json" | "csv";
@@ -27,6 +28,7 @@ export interface ReportExportContext {
   commandHistory: CommandHistoryItem[];
   subject?: SubjectSnapshot;
   capture?: CaptureProfile;
+  surveys?: SubjectSurveyRecord;
 }
 
 const MIME_TYPE: Record<ReportFormat, string> = { json: "application/json", csv: "text/csv" };

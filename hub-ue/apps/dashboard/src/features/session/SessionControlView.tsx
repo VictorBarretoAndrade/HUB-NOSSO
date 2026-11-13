@@ -12,6 +12,7 @@ import { commandHistoryForRun, deriveExperienceReport } from "../../domain/exper
 import { deriveAnalyticSessionTimeline, summarizeExperienceRun } from "../../domain/experienceRun";
 import { summarizeRunHeader } from "../../domain/sessionControlUi";
 import type { SessionControlTab } from "../../domain/sessionControlUi";
+import { deriveSurveySessionSummary } from "../../domain/surveys";
 import { downloadTextFile } from "../../lib/download";
 import { ExperienceReportPanel } from "../report/ExperienceReportPanel";
 import { buildReportCsvFile, buildReportFile, buildTimelineCsvFile } from "../report/reportExports";
@@ -71,6 +72,15 @@ export function SessionControlView({ activeTab, dashboard, onNavigate, onTabChan
   const report = useMemo(
     () => deriveExperienceReport(run, timeline, experienceEvents, reportCommandHistory),
     [experienceEvents, reportCommandHistory, run, timeline],
+  );
+  const sessionSurvey = useMemo(
+    () =>
+      dashboard.surveyRecords.find(
+        (item) =>
+          (run.runId && item.runId === run.runId) ||
+          (setup.subject?.subjectId && item.subjectId === setup.subject.subjectId),
+      ),
+    [dashboard.surveyRecords, run.runId, setup.subject?.subjectId],
   );
 
   const awaitedCommand = commands.operationalHistory.find(
@@ -276,6 +286,7 @@ export function SessionControlView({ activeTab, dashboard, onNavigate, onTabChan
           {currentTab === "report" && (
             <ExperienceReportPanel
               report={report}
+              sessionSurvey={sessionSurvey}
               timelineItemCount={timeline.length}
               onExportReport={(format) =>
                 saveExport(
@@ -284,11 +295,37 @@ export function SessionControlView({ activeTab, dashboard, onNavigate, onTabChan
                     commandHistory: reportCommandHistory,
                     subject: setup.subjectSnapshot,
                     capture: setup.capture,
+                    surveys: sessionSurvey,
                   }),
                 )
               }
               onExportReportCsv={(kind) => saveExport(buildReportCsvFile(report, kind))}
               onExportTimeline={() => saveExport(buildTimelineCsvFile(run, timeline))}
+              onOpenSurveys={() => {
+                const now = new Date().toISOString();
+                const subjectId = setup.subject?.subjectId.trim() || "Sujeito-Sessao";
+                dashboard.upsertSurvey(
+                  sessionSurvey
+                    ? {
+                        ...sessionSurvey,
+                        runId: run.runId ?? sessionSurvey.runId,
+                        updatedAt: now,
+                        subjectSnapshot: setup.subjectSnapshot ?? sessionSurvey.subjectSnapshot,
+                        sessionSummary: deriveSurveySessionSummary(report),
+                      }
+                    : {
+                        id: `session-${run.runId ?? Date.now()}`,
+                        subjectId,
+                        systemName: run.label || "Ambiente Virtual (IVE)",
+                        runId: run.runId,
+                        createdAt: now,
+                        updatedAt: now,
+                        subjectSnapshot: setup.subjectSnapshot,
+                        sessionSummary: deriveSurveySessionSummary(report),
+                      },
+                );
+                onNavigate("surveys");
+              }}
             />
           )}
         </div>

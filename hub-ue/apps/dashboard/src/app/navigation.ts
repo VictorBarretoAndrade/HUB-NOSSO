@@ -1,4 +1,4 @@
-import { Activity, Award, BookOpen, Command, Database, FileText, Gauge, Settings, UserPlus, Users } from "lucide-react";
+import { Activity, Award, BookOpen, ClipboardCheck, Command, Database, FileText, Gauge, Settings, UserPlus, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { SessionControlTab } from "../domain/sessionControlUi";
 
@@ -8,6 +8,7 @@ export type View =
   | "recording"
   | "session"
   | "live"
+  | "surveys"
   | "clients"
   | "topics"
   | "diagnostics"
@@ -78,6 +79,13 @@ export const NAV_GROUPS: NavGroup[] = [
         title: "Monitor ao vivo",
         description: "ECG ao vivo e tendências de HR e RR.",
         icon: Activity,
+      },
+      {
+        id: "surveys",
+        label: "Pesquisa",
+        title: "Formulários de pesquisa (SELECT-IVE)",
+        description: "Aplicação e análise unificada de SUS, IPQ, CSQ-VR, UTAUT2 e Análise de Sentimento com sensores.",
+        icon: ClipboardCheck,
       },
     ],
   },

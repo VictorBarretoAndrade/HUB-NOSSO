@@ -1,4 +1,4 @@
-import { Download } from "lucide-react";
+import { ClipboardCheck, Download } from "lucide-react";
 import { useState } from "react";
 import { Panel } from "../../components/Panel";
 import { StatusPill } from "../../components/StatusPill";
@@ -6,6 +6,7 @@ import { commandIssueCount, deriveExperienceReportHealth } from "../../domain/ex
 import type { ExperienceReport } from "../../domain/experienceReport";
 import { formatExperienceTime } from "../../domain/experienceRun";
 import { sensorSignalLabel } from "../../domain/sensorTelemetry";
+import type { SubjectSurveyRecord } from "../../domain/surveys";
 import { formatBpmRange, formatDateTime, formatReportMs, formatReportNumber, formatTime } from "../../lib/format";
 import { BiometricTimelineChart } from "./BiometricTimelineChart";
 import { ReportChip } from "./ReportChip";
@@ -16,9 +17,11 @@ import { UnrealTelemetryChart } from "./UnrealTelemetryChart";
 interface ExperienceReportPanelProps {
   report: ExperienceReport;
   timelineItemCount: number;
+  sessionSurvey?: SubjectSurveyRecord;
   onExportReport: (format: ReportFormat) => void;
   onExportReportCsv: (kind: ReportCsvKind) => void;
   onExportTimeline: () => void;
+  onOpenSurveys?: () => void;
 }
 
 function sampleCountLabel(count: number): string {
@@ -30,7 +33,9 @@ export function ExperienceReportPanel({
   onExportReport,
   onExportReportCsv,
   onExportTimeline,
+  onOpenSurveys,
   report,
+  sessionSurvey,
   timelineItemCount,
 }: ExperienceReportPanelProps) {
   const { analytics, biometrics, commands, markers, summary } = report;
@@ -130,6 +135,72 @@ export function ExperienceReportPanel({
           O relatório fica salvo apenas neste navegador e é substituído ao iniciar a próxima experiência. Exporte os
           arquivos de que precisa.
         </p>
+      </Panel>
+
+      <Panel
+        className="report-wide"
+        title="Formulários de pesquisa da sessão (SELECT-IVE & SUS Toolkit)"
+        action={
+          onOpenSurveys && (
+            <button className="mini-button strong" type="button" onClick={onOpenSurveys}>
+              <ClipboardCheck aria-hidden size={14} />{" "}
+              {sessionSurvey ? "Aplicar / Editar Formulários da Sessão" : "Registrar Formulários desta Sessão"}
+            </button>
+          )
+        }
+      >
+        <p className="muted-copy">
+          Unifique os dados biométricos desta sessão com os instrumentos psicométricos pós-exposição (SUS, IPQ, CSQ-VR,
+          UTAUT2 e Análise de Sentimento) do mesmo sujeito.
+        </p>
+        <div className="report-chip-row">
+          <ReportChip
+            label="SUS (Usabilidade)"
+            value={sessionSurvey?.sus ? `${sessionSurvey.sus.score.toFixed(1)}` : "Pendente"}
+            detail={sessionSurvey?.sus ? `Grade ${sessionSurvey.sus.grade} · ${sessionSurvey.sus.adjective}` : undefined}
+            tone={sessionSurvey?.sus ? "ok" : undefined}
+          />
+          <ReportChip
+            label="IPQ (Presença Global)"
+            value={sessionSurvey?.ipq ? `${sessionSurvey.ipq.globalPresence.toFixed(2)} / 5` : "Pendente"}
+            detail={
+              sessionSurvey?.ipq
+                ? `SP ${sessionSurvey.ipq.spatialPresence.toFixed(1)} · INV ${sessionSurvey.ipq.involvement.toFixed(1)} · REAL ${sessionSurvey.ipq.experiencedRealism.toFixed(1)}`
+                : undefined
+            }
+            tone={sessionSurvey?.ipq ? "ok" : undefined}
+          />
+          <ReportChip
+            label="CSQ-VR (Cybersickness)"
+            value={sessionSurvey?.csqVr ? `${sessionSurvey.csqVr.post.total} / 42` : "Pendente"}
+            detail={
+              sessionSurvey?.csqVr
+                ? `N:${sessionSurvey.csqVr.post.nausea} V:${sessionSurvey.csqVr.post.vestibular} O:${sessionSurvey.csqVr.post.oculomotor}`
+                : undefined
+            }
+            tone={
+              sessionSurvey?.csqVr
+                ? sessionSurvey.csqVr.exceedsVrCutoff
+                  ? "warn"
+                  : "ok"
+                : undefined
+            }
+          />
+          <ReportChip
+            label="UTAUT2 (Aceitação)"
+            value={sessionSurvey?.utaut2 ? `${sessionSurvey.utaut2.overallScore.toFixed(2)} / 5` : "Pendente"}
+            detail={sessionSurvey?.utaut2 ? `BI ${sessionSurvey.utaut2.constructs.BI.toFixed(2)}` : undefined}
+            tone={sessionSurvey?.utaut2 ? "ok" : undefined}
+          />
+          <ReportChip
+            label="Sentimento (PC1)"
+            value={
+              sessionSurvey?.sentiment ? `${sessionSurvey.sentiment.avgSentimentPc1.toFixed(2)}` : "Pendente"
+            }
+            detail={sessionSurvey?.sentiment ? sessionSurvey.sentiment.finalLabel.toUpperCase() : undefined}
+            tone={sessionSurvey?.sentiment ? "ok" : undefined}
+          />
+        </div>
       </Panel>
 
       <Panel

@@ -11,6 +11,7 @@ import { OverviewView } from "../features/overview/OverviewView";
 import { RecordingModeView } from "../features/recording/RecordingModeView";
 import { SessionControlView } from "../features/session/SessionControlView";
 import { SubjectView } from "../features/subject/SubjectView";
+import { SurveysView } from "../features/surveys/SurveysView";
 import { TopicsView } from "../features/topics/TopicsView";
 import { ConnectionBanner } from "./ConnectionBanner";
 import { useHashRoute } from "./hooks/useHashRoute";
@@ -133,6 +134,7 @@ export function App() {
             />
           )}
           {route.view === "live" && <LiveView events={dashboard.events} onNavigate={navigateToView} />}
+          {route.view === "surveys" && <SurveysView dashboard={dashboard} />}
           {route.view === "clients" && (
             <ClientsView
               clients={clients}

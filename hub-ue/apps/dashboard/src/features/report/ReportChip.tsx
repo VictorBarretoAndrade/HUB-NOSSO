@@ -1,6 +1,6 @@
 interface ReportChipProps {
   label: string;
-  value: number;
+  value: number | string;
   detail?: string;
   tone?: "ok" | "warn" | "muted";
 }
