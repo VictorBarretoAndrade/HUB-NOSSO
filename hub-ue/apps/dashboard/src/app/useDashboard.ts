@@ -15,6 +15,7 @@ import { deriveManagedSensors, sensorPublishTopics } from "../domain/sensorManag
 import { deriveSensorDataStream, deriveSensorTelemetrySummaries, serializeSensorDataStreamJson } from "../domain/sensorTelemetry";
 import { deriveSessionState } from "../domain/sessionState";
 import {
+  SURVEYS_STORAGE_KEY,
   createSampleSurveyRecords,
   deleteSurveyRecord,
   loadSurveyRecords,
@@ -221,6 +222,16 @@ export function useDashboard() {
   const clearAllSurveys = useCallback(() => {
     saveSurveyRecords(browserStorage, []);
     setSurveyRecords([]);
+  }, []);
+
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === SURVEYS_STORAGE_KEY) {
+        setSurveyRecords(loadSurveyRecords(browserStorage));
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
   return {

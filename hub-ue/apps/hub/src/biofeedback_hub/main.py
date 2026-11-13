@@ -1,4 +1,5 @@
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -31,10 +32,11 @@ def create_app(config: HubConfig | None = None) -> Any:
         background_writes=True,
     )
     runtime = HubRuntime(broker=broker, session_logger=session_logger)
+    include_simulator = os.getenv("BIOFEEDBACK_INCLUDE_SIMULATOR", "1").strip().lower() not in {"0", "false", "no"}
     sensor_manager = SensorManager(
         broker=broker,
         runtime=runtime,
-        adapters=[SimulatedManagedHrvAdapter()],
+        adapters=[SimulatedManagedHrvAdapter()] if include_simulator else [],
         providers=[
             LslDiscoveryProvider(
                 enabled=resolved_config.lsl_enabled,

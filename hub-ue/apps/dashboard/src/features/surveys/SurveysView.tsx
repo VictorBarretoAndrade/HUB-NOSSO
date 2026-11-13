@@ -2,6 +2,7 @@ import {
   BarChart3,
   ClipboardCheck,
   Download,
+  ExternalLink,
   FileSpreadsheet,
   FolderSync,
   Globe,
@@ -13,6 +14,7 @@ import {
   UserCheck,
 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
+import { formatParticipantSurveyHash } from "../../app/navigation";
 import type { Dashboard } from "../../app/useDashboard";
 import { Panel } from "../../components/Panel";
 import { StatusPill } from "../../components/StatusPill";
@@ -35,7 +37,15 @@ import {
   serializeUtaut2Csv,
 } from "../../domain/surveyCsv";
 import type { SurveyExportCsvKind } from "../../domain/surveyCsv";
-import type { SurveyInstrumentId, SurveyLanguage } from "../../domain/surveyInstruments";
+import {
+  DEFAULT_UTAUT2_PLACEHOLDERS,
+  SURVEY_INSTRUMENT_META,
+} from "../../domain/surveyInstruments";
+import type {
+  SurveyInstrumentId,
+  SurveyLanguage,
+  Utaut2Placeholders,
+} from "../../domain/surveyInstruments";
 import { deriveSurveySessionSummary } from "../../domain/surveys";
 import type { SubjectSurveyRecord } from "../../domain/surveys";
 import { downloadTextFile, fileTimestamp } from "../../lib/download";
@@ -49,7 +59,8 @@ import {
 import { SurveyFormRunner } from "./SurveyFormRunner";
 import { SusToolkitCharts } from "./SusToolkitCharts";
 
-export type SurveysSubTab = "unified" | "apply" | "analytics" | "csv";
+export type SurveysMainMode = "apply" | "analyze";
+export type SurveysAnalyzeTab = "unified" | "analytics" | "csv";
 
 interface SurveysViewProps {
   dashboard: Dashboard;
@@ -70,10 +81,16 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
     clearAllSurveys,
   } = dashboard;
 
-  const [subTab, setSubTab] = useState<SurveysSubTab>("unified");
+  const [mainMode, setMainMode] = useState<SurveysMainMode>("apply");
+  const [analyzeTab, setAnalyzeTab] = useState<SurveysAnalyzeTab>("unified");
   const [activeInstrument, setActiveInstrument] = useState<SurveyInstrumentId>("sus");
   const [analyticsInstrument, setAnalyticsInstrument] = useState<SurveyInstrumentId>("sus");
+  const [showInlineRunner, setShowInlineRunner] = useState<boolean>(false);
+  const [launchCsqPre, setLaunchCsqPre] = useState<boolean>(false);
   const [lang, setLang] = useState<SurveyLanguage>("pt");
+  const [launchPlaceholders, setLaunchPlaceholders] = useState<Utaut2Placeholders>(
+    () => DEFAULT_UTAUT2_PLACEHOLDERS.pt,
+  );
   const [selectedSystemFilter, setSelectedSystemFilter] = useState<string>("__ALL__");
   const [selectedRecordId, setSelectedRecordId] = useState<string>(
     () => surveyRecords[0]?.id ?? "",
@@ -184,9 +201,34 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
     upsertSurvey(record);
     setSelectedRecordId(record.id);
     if (openApplyTab) {
-      setSubTab("apply");
+      setMainMode("apply");
     }
     notify(`Sessão e dados biométricos vinculados ao sujeito ${record.subjectId}.`);
+  };
+
+  const handleOpenParticipantTab = (instrument: SurveyInstrumentId) => {
+    const existsInStore = surveyRecords.some((r) => r.id === selectedRecord.id);
+    if (!existsInStore) {
+      upsertSurvey(selectedRecord);
+    }
+    const hash = formatParticipantSurveyHash({
+      recordId: selectedRecord.id,
+      instrument,
+      lang,
+      csqPre: instrument === "csqVr" && launchCsqPre ? true : undefined,
+      objective: instrument === "utaut2" ? launchPlaceholders.objective : undefined,
+      utility: instrument === "utaut2" ? launchPlaceholders.utility : undefined,
+      activities: instrument === "utaut2" ? launchPlaceholders.activities : undefined,
+      studiedActivity: instrument === "utaut2" ? launchPlaceholders.studiedActivity : undefined,
+    });
+    const url = `${window.location.origin}${window.location.pathname}${hash}`;
+    const opened = window.open(url, "_blank");
+    const meta = SURVEY_INSTRUMENT_META.find((m) => m.id === instrument);
+    if (opened) {
+      notify(`Formulário ${meta?.shortLabel ?? instrument} aberto em nova aba para ${selectedRecord.subjectId}.`);
+    } else {
+      window.location.hash = hash;
+    }
   };
 
   const handleCreateSubjectRecord = () => {
@@ -268,174 +310,361 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
       notify(
         `${result.importedCount} registros importados (${result.detectedFormat === "sus-toolkit" ? "formato SUS Toolkit" : "formato Unificado/SELECT-IVE"}).`,
       );
-      setSubTab("analytics");
+      setMainMode("analyze");
+      setAnalyzeTab("analytics");
     } catch (err) {
       notify(err instanceof Error ? err.message : "Erro ao processar CSV.", "error");
     }
   };
 
+  const selectedInstrumentMeta =
+    SURVEY_INSTRUMENT_META.find((m) => m.id === activeInstrument) ?? SURVEY_INSTRUMENT_META[0];
+
   return (
     <section className="content-grid surveys-layout">
-      {/* Faixa superior de vínculo com a sessão atual + idioma + navegação interna */}
-      <Panel
-        className="report-wide"
-        title="SELECT-IVE & SUS Analysis Toolkit · Central Unificada de Pesquisa e Biometria"
-        action={
-          <div className="survey-header-actions">
-            <button
-              className="mini-button"
-              title="Alternar idioma dos enunciados dos formulários (PT-BR / EN)"
-              type="button"
-              onClick={() => setLang(lang === "pt" ? "en" : "pt")}
-            >
-              <Globe aria-hidden size={14} /> Idioma: {lang === "pt" ? "PT-BR" : "EN"}
-            </button>
-            <button
-              className="mini-button strong"
-              type="button"
-              onClick={() => linkCurrentSession(true)}
-            >
-              <FolderSync aria-hidden size={14} /> Aplicar Formulário na Sessão Atual ({activeSubjectId})
-            </button>
-          </div>
-        }
-      >
-        <div className="survey-session-banner">
-          <div className="survey-session-banner-info">
-            <span className="eyebrow">Vínculo em Tempo Real com a Sessão & Sensores</span>
-            <p>
-              <strong>Sujeito ativo:</strong> <span className="mono">{activeSubjectId}</span> ·{" "}
-              <strong>Run:</strong> <span className="mono">{run.runId ?? "não iniciada"}</span> ({run.status}) ·{" "}
-              <strong>Biometria capturada:</strong>{" "}
-              <span className="mono">
-                BPM {formatBpmRange(currentSessionSummary.bpmMin, currentSessionSummary.bpmAvg, currentSessionSummary.bpmMax)}
-              </span>{" "}
-              / <span className="mono">RR {formatReportMs(currentSessionSummary.rrAvgMs)}</span> (
-              {currentSessionSummary.sampleCount} amostras)
-            </p>
-          </div>
-          <div className="survey-session-banner-buttons">
-            <button className="mini-button" type="button" onClick={() => linkCurrentSession(false)}>
-              <UserCheck aria-hidden size={14} /> Sincronizar Biometria da Sessão
-            </button>
-            <button
-              className="mini-button"
-              type="button"
-              onClick={() => {
-                loadSampleSurveys();
-                notify("Estudo demonstrativo SELECT-IVE (14 sujeitos com sensores + 5 formulários) carregado.");
-              }}
-            >
-              <Sparkles aria-hidden size={14} /> Carregar Estudo Exemplo (N=14)
-            </button>
-            {surveyRecords.length > 0 && (
-              <button
-                className="mini-button danger"
-                title="Limpa os registros mockados/demonstrativos para operar com sujeitos e sessões reais"
-                type="button"
-                onClick={() => {
-                  if (window.confirm("Deseja limpar todos os registros de pesquisa salvos e iniciar um banco limpo para testes reais?")) {
-                    clearAllSurveys();
-                    notify("Registros demonstrativos removidos. Banco de formulários limpo para coleta real.");
-                  }
-                }}
-              >
-                <Trash2 aria-hidden size={14} /> Limpar Dados Demonstrativos
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Sub-abas da Central de Pesquisa */}
-        <div className="survey-main-tabs" role="tablist" aria-label="Modos de pesquisa e análise">
+      {/* Abas horizontais principais da área de Pesquisa */}
+      <div className="survey-horizontal-tabs-bar">
+        <div className="survey-horizontal-tabs" role="tablist" aria-label="Opções da aba de pesquisa">
           <button
-            aria-selected={subTab === "unified"}
-            className={`survey-nav-btn ${subTab === "unified" ? "active" : ""}`}
+            aria-selected={mainMode === "apply"}
+            className={`survey-horizontal-tab ${mainMode === "apply" ? "active" : ""}`}
             role="tab"
             type="button"
-            onClick={() => setSubTab("unified")}
-          >
-            <HeartPulse aria-hidden size={16} />
-            <span>Dossiê Unificado (Sensores + Pesquisa)</span>
-            <span className="tab-count">{surveyRecords.length}</span>
-          </button>
-          <button
-            aria-selected={subTab === "apply"}
-            className={`survey-nav-btn ${subTab === "apply" ? "active" : ""}`}
-            role="tab"
-            type="button"
-            onClick={() => setSubTab("apply")}
+            onClick={() => setMainMode("apply")}
           >
             <ClipboardCheck aria-hidden size={16} />
-            <span>Aplicar Formulários ({selectedRecord.subjectId})</span>
+            <span>Aplicar Novo Formulário no Sujeito</span>
           </button>
           <button
-            aria-selected={subTab === "analytics"}
-            className={`survey-nav-btn ${subTab === "analytics" ? "active" : ""}`}
+            aria-selected={mainMode === "analyze"}
+            className={`survey-horizontal-tab ${mainMode === "analyze" ? "active" : ""}`}
             role="tab"
             type="button"
-            onClick={() => setSubTab("analytics")}
+            onClick={() => setMainMode("analyze")}
           >
             <BarChart3 aria-hidden size={16} />
-            <span>Análise Gráfica (SUS Toolkit & SELECT-IVE)</span>
+            <span>Analisar Resultados</span>
+            <span className="tab-count">{surveyRecords.length}</span>
           </button>
+        </div>
+
+        <div className="survey-header-actions" style={{ paddingBottom: 6 }}>
           <button
-            aria-selected={subTab === "csv"}
-            className={`survey-nav-btn ${subTab === "csv" ? "active" : ""}`}
-            role="tab"
+            className="mini-button"
+            title="Alternar idioma dos enunciados dos formulários (PT-BR / EN)"
             type="button"
-            onClick={() => setSubTab("csv")}
+            onClick={() => setLang(lang === "pt" ? "en" : "pt")}
           >
-            <FileSpreadsheet aria-hidden size={16} />
-            <span>Importar / Exportar CSV</span>
+            <Globe aria-hidden size={14} /> Idioma: {lang === "pt" ? "PT-BR" : "EN"}
           </button>
         </div>
+      </div>
 
-        {/* Seletor rápido de Sujeito / Sessão ativa */}
-        <div className="survey-toolbar-bar">
-          <label>
-            <span>Sujeito / Sessão em Foco</span>
-            <select
-              value={selectedRecord.id}
-              onChange={(e) => setSelectedRecordId(e.target.value)}
-            >
-              {surveyRecords.length === 0 ? (
-                <option value={selectedRecord.id}>
-                  {selectedRecord.subjectId} (Sessão atual)
-                </option>
-              ) : (
-                surveyRecords.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.subjectId} · {r.systemName} {r.runId ? `(${r.runId})` : ""}
-                  </option>
-                ))
-              )}
-            </select>
-          </label>
-          <label>
-            <span>Novo Sujeito ID</span>
-            <input
-              placeholder="Ex.: S-2026-015"
-              value={newSubjectId}
-              onChange={(e) => setNewSubjectId(e.target.value)}
+      {/* ===================================================================
+          MODO 1: APLICAR NOVO FORMULÁRIO NO SUJEITO
+          =================================================================== */}
+      {mainMode === "apply" && (
+        <div className="report-wide survey-analytics-stack">
+          {/* Seção 1: Sujeito e Sessão em Foco */}
+          <Panel
+            title="1. Sujeito e Sessão em Foco"
+            action={
+              <button className="mini-button" type="button" onClick={() => linkCurrentSession(true)}>
+                <FolderSync aria-hidden size={14} /> Sincronizar Sessão Atual ({activeSubjectId})
+              </button>
+            }
+          >
+            <div className="survey-session-banner">
+              <div className="survey-session-banner-info">
+                <span className="eyebrow">Vínculo com a Sessão & Sensores</span>
+                <p>
+                  <strong>Sujeito ativo:</strong> <span className="mono">{activeSubjectId}</span> ·{" "}
+                  <strong>Run:</strong> <span className="mono">{run.runId ?? "não iniciada"}</span> ({run.status}) ·{" "}
+                  <strong>Biometria capturada:</strong>{" "}
+                  <span className="mono">
+                    BPM {formatBpmRange(currentSessionSummary.bpmMin, currentSessionSummary.bpmAvg, currentSessionSummary.bpmMax)}
+                  </span>{" "}
+                  / <span className="mono">RR {formatReportMs(currentSessionSummary.rrAvgMs)}</span> (
+                  {currentSessionSummary.sampleCount} amostras)
+                </p>
+              </div>
+              <div className="survey-session-banner-buttons">
+                <button className="mini-button" type="button" onClick={() => linkCurrentSession(false)}>
+                  <UserCheck aria-hidden size={14} /> Atualizar Biometria
+                </button>
+              </div>
+            </div>
+
+            <div className="survey-toolbar-bar" style={{ marginBottom: 0 }}>
+              <label>
+                <span>Sujeito / Sessão em Foco</span>
+                <select
+                  value={selectedRecord.id}
+                  onChange={(e) => setSelectedRecordId(e.target.value)}
+                >
+                  {surveyRecords.length === 0 ? (
+                    <option value={selectedRecord.id}>
+                      {selectedRecord.subjectId} (Sessão atual)
+                    </option>
+                  ) : (
+                    surveyRecords.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.subjectId} · {r.systemName} {r.runId ? `(${r.runId})` : ""}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+              <label>
+                <span>Novo Sujeito ID</span>
+                <input
+                  placeholder="Ex.: S-2026-015"
+                  value={newSubjectId}
+                  onChange={(e) => setNewSubjectId(e.target.value)}
+                />
+              </label>
+              <label>
+                <span>Sistema / Ambiente (System)</span>
+                <input
+                  placeholder="Ex.: Treinamento NR-35"
+                  value={newSystemName}
+                  onChange={(e) => setNewSystemName(e.target.value)}
+                />
+              </label>
+              <button className="mini-button strong" type="button" onClick={handleCreateSubjectRecord}>
+                <Plus aria-hidden size={14} /> Adicionar Sujeito
+              </button>
+            </div>
+          </Panel>
+
+          {/* Seção 2: Seleção do Tipo de Formulário e Abertura em Nova Aba */}
+          <Panel
+            title={`2. Selecionar Tipo de Formulário — Sujeito ${selectedRecord.subjectId}`}
+            action={
+              <button
+                className="mini-button"
+                type="button"
+                onClick={() => setShowInlineRunner((prev) => !prev)}
+              >
+                {showInlineRunner ? "Ocultar Edição Inline" : "Editar / Depurar nesta tela (Operador)"}
+              </button>
+            }
+          >
+            <div className="survey-instrument-cards">
+              {SURVEY_INSTRUMENT_META.map((meta) => {
+                const isCompleted = Boolean(selectedRecord[meta.id]);
+                const isActive = activeInstrument === meta.id;
+                return (
+                  <button
+                    className={`survey-instrument-card ${isActive ? "active" : ""}`}
+                    key={meta.id}
+                    type="button"
+                    onClick={() => setActiveInstrument(meta.id)}
+                  >
+                    <div className="survey-instrument-card-top">
+                      <strong>{meta.shortLabel}</strong>
+                      {isCompleted && <StatusPill tone="ok" label="Registrado" />}
+                    </div>
+                    <p className="survey-instrument-card-title">{meta.title[lang]}</p>
+                    <span className="survey-instrument-card-meta">{meta.scaleLabel[lang]}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {activeInstrument === "csqVr" && (
+              <div className="survey-toolbar-bar" style={{ marginTop: 12 }}>
+                <label className="checkbox-line">
+                  <input
+                    checked={launchCsqPre}
+                    type="checkbox"
+                    onChange={(e) => setLaunchCsqPre(e.target.checked)}
+                  />
+                  Incluir Baseline Pré-VR (Antes da exposição) no formulário do sujeito
+                </label>
+              </div>
+            )}
+
+            {activeInstrument === "utaut2" && (
+              <div className="utaut-placeholders-box">
+                <strong>Adaptação Contextual dos Enunciados (UTAUT2)</strong>
+                <div className="utaut-placeholders-grid">
+                  <label>
+                    <span>Objetivo [objective]</span>
+                    <input
+                      value={launchPlaceholders.objective}
+                      onChange={(e) =>
+                        setLaunchPlaceholders({ ...launchPlaceholders, objective: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>Utilidade [utility]</span>
+                    <input
+                      value={launchPlaceholders.utility}
+                      onChange={(e) =>
+                        setLaunchPlaceholders({ ...launchPlaceholders, utility: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>Atividades [activities]</span>
+                    <input
+                      value={launchPlaceholders.activities}
+                      onChange={(e) =>
+                        setLaunchPlaceholders({ ...launchPlaceholders, activities: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>Atividade estudada [studiedActivity]</span>
+                    <input
+                      value={launchPlaceholders.studiedActivity}
+                      onChange={(e) =>
+                        setLaunchPlaceholders({ ...launchPlaceholders, studiedActivity: e.target.value })
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
+            )}
+
+            <div className="form-actions" style={{ marginTop: 16 }}>
+              <button
+                className="command-button strong"
+                type="button"
+                onClick={() => handleOpenParticipantTab(activeInstrument)}
+              >
+                <ExternalLink aria-hidden size={16} /> Abrir {selectedInstrumentMeta.shortLabel} em Nova Aba (Visão do Sujeito)
+              </button>
+            </div>
+          </Panel>
+
+          {showInlineRunner && (
+            <SurveyFormRunner
+              activeInstrument={activeInstrument}
+              key={selectedRecord.id}
+              lang={lang}
+              record={selectedRecord}
+              onInstrumentChange={setActiveInstrument}
+              onSaveRecord={handleSaveInstrument}
             />
-          </label>
-          <label>
-            <span>Sistema / Ambiente (System)</span>
-            <input
-              placeholder="Ex.: Treinamento NR-35"
-              value={newSystemName}
-              onChange={(e) => setNewSystemName(e.target.value)}
-            />
-          </label>
-          <button className="mini-button strong" type="button" onClick={handleCreateSubjectRecord}>
-            <Plus aria-hidden size={14} /> Adicionar Sujeito
-          </button>
+          )}
         </div>
-      </Panel>
+      )}
 
-      {/* ABA 1: DOSSIÊ UNIFICADO (SUJEITO + SENSORES + PESQUISA) */}
-      {subTab === "unified" && (
+      {/* ===================================================================
+          MODO 2: ANALISAR OS RESULTADOS
+          =================================================================== */}
+      {mainMode === "analyze" && (
+        <>
+          {/* Seção de Gerenciamento de Amostra / Sujeito em Foco / Filtro */}
+          <Panel
+            className="report-wide"
+            title="Sujeito em Foco e Banco de Dados da Pesquisa"
+            action={
+              <div className="survey-session-banner-buttons">
+                <button
+                  className="mini-button"
+                  type="button"
+                  onClick={() => {
+                    loadSampleSurveys();
+                    notify("Estudo demonstrativo SELECT-IVE (14 sujeitos com sensores + 5 formulários) carregado.");
+                  }}
+                >
+                  <Sparkles aria-hidden size={14} /> Carregar Estudo Exemplo (N=14)
+                </button>
+                {surveyRecords.length > 0 && (
+                  <button
+                    className="mini-button danger"
+                    title="Limpa os registros mockados/demonstrativos para operar com sujeitos e sessões reais"
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm("Deseja limpar todos os registros de pesquisa salvos e iniciar um banco limpo para testes reais?")) {
+                        clearAllSurveys();
+                        notify("Registros removidos. Banco de formulários limpo para coleta real.");
+                      }
+                    }}
+                  >
+                    <Trash2 aria-hidden size={14} /> Limpar Dados
+                  </button>
+                )}
+              </div>
+            }
+          >
+            <div className="survey-main-tabs" role="tablist" aria-label="Seções de análise">
+              <button
+                aria-selected={analyzeTab === "unified"}
+                className={`survey-nav-btn ${analyzeTab === "unified" ? "active" : ""}`}
+                role="tab"
+                type="button"
+                onClick={() => setAnalyzeTab("unified")}
+              >
+                <HeartPulse aria-hidden size={16} />
+                <span>Dossiê Unificado (Sensores + Pesquisa)</span>
+                <span className="tab-count">{surveyRecords.length}</span>
+              </button>
+              <button
+                aria-selected={analyzeTab === "analytics"}
+                className={`survey-nav-btn ${analyzeTab === "analytics" ? "active" : ""}`}
+                role="tab"
+                type="button"
+                onClick={() => setAnalyzeTab("analytics")}
+              >
+                <BarChart3 aria-hidden size={16} />
+                <span>Análise Gráfica (SUS Toolkit & SELECT-IVE)</span>
+              </button>
+              <button
+                aria-selected={analyzeTab === "csv"}
+                className={`survey-nav-btn ${analyzeTab === "csv" ? "active" : ""}`}
+                role="tab"
+                type="button"
+                onClick={() => setAnalyzeTab("csv")}
+              >
+                <FileSpreadsheet aria-hidden size={16} />
+                <span>Importar / Exportar CSV</span>
+              </button>
+            </div>
+
+            <div className="survey-toolbar-bar" style={{ marginBottom: 0 }}>
+              <label>
+                <span>Sujeito / Sessão em Foco</span>
+                <select
+                  value={selectedRecord.id}
+                  onChange={(e) => setSelectedRecordId(e.target.value)}
+                >
+                  {surveyRecords.length === 0 ? (
+                    <option value={selectedRecord.id}>
+                      {selectedRecord.subjectId} (Sessão atual)
+                    </option>
+                  ) : (
+                    surveyRecords.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.subjectId} · {r.systemName} {r.runId ? `(${r.runId})` : ""}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+              <label>
+                <span>Filtrar por Sistema (System)</span>
+                <select
+                  value={selectedSystemFilter}
+                  onChange={(e) => setSelectedSystemFilter(e.target.value)}
+                >
+                  <option value="__ALL__">Todos os Sistemas ({surveyRecords.length} sujeitos)</option>
+                  {distinctSystems.map((sys) => (
+                    <option key={sys} value={sys}>
+                      {sys}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </Panel>
+
+          {/* SUB-ABA 1: DOSSIÊ UNIFICADO (SUJEITO + SENSORES + PESQUISA) */}
+          {analyzeTab === "unified" && (
         <div className="report-wide survey-analytics-stack">
           <div className="survey-charts-grid-2">
             <Panel
@@ -503,9 +732,9 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
                 <button
                   className="mini-button strong"
                   type="button"
-                  onClick={() => setSubTab("apply")}
+                  onClick={() => setMainMode("apply")}
                 >
-                  <ClipboardCheck aria-hidden size={14} /> Preencher / Editar Formulários
+                  <ClipboardCheck aria-hidden size={14} /> Aplicar / Editar Formulários
                 </button>
               }
             >
@@ -654,7 +883,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setSelectedRecordId(rec.id);
-                                  setSubTab("apply");
+                                  setMainMode("apply");
                                 }}
                               >
                                 Formulários
@@ -684,22 +913,8 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
         </div>
       )}
 
-      {/* ABA 2: APLICAR FORMULÁRIOS */}
-      {subTab === "apply" && (
-        <div className="report-wide">
-          <SurveyFormRunner
-            activeInstrument={activeInstrument}
-            key={selectedRecord.id}
-            lang={lang}
-            record={selectedRecord}
-            onInstrumentChange={setActiveInstrument}
-            onSaveRecord={handleSaveInstrument}
-          />
-        </div>
-      )}
-
-      {/* ABA 3: ANÁLISE GRÁFICA (SUS TOOLKIT & SELECT-IVE) */}
-      {subTab === "analytics" && (
+      {/* SUB-ABA 2: ANÁLISE GRÁFICA (SUS TOOLKIT & SELECT-IVE) */}
+      {analyzeTab === "analytics" && (
         <div className="report-wide survey-analytics-stack">
           <Panel title="Seleção de Instrumento & Filtro de Sistema">
             <div className="survey-toolbar-bar">
@@ -774,8 +989,8 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
         </div>
       )}
 
-      {/* ABA 4: IMPORTAR / EXPORTAR CSV */}
-      {subTab === "csv" && (
+      {/* SUB-ABA 3: IMPORTAR / EXPORTAR CSV */}
+      {analyzeTab === "csv" && (
         <div className="report-wide survey-charts-grid-2">
           <Panel title="Importar CSV (SUS Analysis Toolkit ou SELECT-IVE Unificado)">
             <p className="muted-copy">
@@ -910,6 +1125,8 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
             </div>
           </Panel>
         </div>
+      )}
+        </>
       )}
     </section>
   );

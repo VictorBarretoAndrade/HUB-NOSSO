@@ -11,11 +11,12 @@ import { OverviewView } from "../features/overview/OverviewView";
 import { RecordingModeView } from "../features/recording/RecordingModeView";
 import { SessionControlView } from "../features/session/SessionControlView";
 import { SubjectView } from "../features/subject/SubjectView";
+import { ParticipantSurveyPage } from "../features/surveys/ParticipantSurveyPage";
 import { SurveysView } from "../features/surveys/SurveysView";
 import { TopicsView } from "../features/topics/TopicsView";
 import { ConnectionBanner } from "./ConnectionBanner";
 import { useHashRoute } from "./hooks/useHashRoute";
-import { navItem } from "./navigation";
+import { navItem, parseParticipantSurveyHash } from "./navigation";
 import type { View } from "./navigation";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
@@ -24,6 +25,7 @@ import { useDashboard } from "./useDashboard";
 export function App() {
   const dashboard = useDashboard();
   const [route, navigate] = useHashRoute();
+  const participantParams = parseParticipantSurveyHash(window.location.hash);
   const mainRef = useRef<HTMLElement>(null);
   const activeItem = navItem(route.view);
   const { hub, socket, setup, settings, clients } = dashboard;
@@ -35,8 +37,10 @@ export function App() {
   );
 
   useEffect(() => {
-    document.title = `${activeItem.title} · Biofeedback Hub`;
-  }, [activeItem.title]);
+    if (!participantParams) {
+      document.title = `${activeItem.title} · Biofeedback Hub`;
+    }
+  }, [activeItem.title, participantParams]);
 
   const retryConnection = useCallback(() => {
     void hub.refresh();
@@ -54,6 +58,14 @@ export function App() {
       ),
     [clients, setup.capture.sensors],
   );
+
+  if (participantParams) {
+    return (
+      <ErrorBoundary key="participant-survey">
+        <ParticipantSurveyPage params={participantParams} onSubmitted={dashboard.upsertSurvey} />
+      </ErrorBoundary>
+    );
+  }
 
   return (
     <div className="app-shell">

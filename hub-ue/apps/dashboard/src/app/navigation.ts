@@ -1,6 +1,7 @@
 import { Activity, Award, BookOpen, ClipboardCheck, Command, Database, FileText, Gauge, Settings, UserPlus, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { SessionControlTab } from "../domain/sessionControlUi";
+import type { SurveyInstrumentId, SurveyLanguage } from "../domain/surveyInstruments";
 
 export type View =
   | "overview"
@@ -165,4 +166,54 @@ export function parseRoute(hash: string): Route {
 
 export function formatRoute(route: Route): string {
   return route.view === "session" && route.sessionTab ? `#/${route.view}/${route.sessionTab}` : `#/${route.view}`;
+}
+
+export interface ParticipantSurveyRouteParams {
+  recordId: string;
+  instrument: SurveyInstrumentId;
+  lang: SurveyLanguage;
+  csqPre?: boolean;
+  objective?: string;
+  utility?: string;
+  activities?: string;
+  studiedActivity?: string;
+}
+
+const VALID_INSTRUMENTS: readonly SurveyInstrumentId[] = ["sus", "ipq", "csqVr", "utaut2", "sentiment"];
+
+/** Lê a rota standalone de aplicação de formulário ao sujeito (sem barra lateral). */
+export function parseParticipantSurveyHash(hash: string): ParticipantSurveyRouteParams | null {
+  const cleaned = hash.replace(/^#\/?/, "");
+  const [pathPart, queryPart = ""] = cleaned.split("?");
+  if (pathPart !== "survey-form") {
+    return null;
+  }
+  const sp = new URLSearchParams(queryPart);
+  const rawInstrument = sp.get("instrument") as SurveyInstrumentId | null;
+  const instrument: SurveyInstrumentId =
+    rawInstrument && VALID_INSTRUMENTS.includes(rawInstrument) ? rawInstrument : "sus";
+  const lang: SurveyLanguage = sp.get("lang") === "en" ? "en" : "pt";
+  return {
+    recordId: sp.get("recordId") || "",
+    instrument,
+    lang,
+    csqPre: sp.get("csqPre") === "1",
+    objective: sp.get("objective") ?? undefined,
+    utility: sp.get("utility") ?? undefined,
+    activities: sp.get("activities") ?? undefined,
+    studiedActivity: sp.get("studiedActivity") ?? undefined,
+  };
+}
+
+export function formatParticipantSurveyHash(params: ParticipantSurveyRouteParams): string {
+  const sp = new URLSearchParams();
+  sp.set("recordId", params.recordId);
+  sp.set("instrument", params.instrument);
+  sp.set("lang", params.lang);
+  if (params.csqPre) sp.set("csqPre", "1");
+  if (params.objective) sp.set("objective", params.objective);
+  if (params.utility) sp.set("utility", params.utility);
+  if (params.activities) sp.set("activities", params.activities);
+  if (params.studiedActivity) sp.set("studiedActivity", params.studiedActivity);
+  return `#/survey-form?${sp.toString()}`;
 }

@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_VIEW, formatRoute, NAV_GROUPS, NAV_ITEMS, navItem, parseRoute } from "./navigation";
+import {
+  DEFAULT_VIEW,
+  formatParticipantSurveyHash,
+  formatRoute,
+  NAV_GROUPS,
+  NAV_ITEMS,
+  navItem,
+  parseParticipantSurveyHash,
+  parseRoute,
+} from "./navigation";
 
 describe("navigation", () => {
   it("parses a view from the URL hash and falls back to the default view", () => {
@@ -28,5 +37,26 @@ describe("navigation", () => {
     expect(new Set(ids).size).toBe(ids.length);
     expect(navItem("diagnostics").title).toBe("Diagnóstico do sistema");
     expect(navItem("credits").title).toBe("Créditos do projeto");
+  });
+
+  it("parses and formats standalone participant survey routes", () => {
+    const hash = formatParticipantSurveyHash({
+      recordId: "subj-P01",
+      instrument: "utaut2",
+      lang: "pt",
+      objective: "treinamento em altura",
+    });
+    expect(hash).toContain("#/survey-form?");
+    expect(parseParticipantSurveyHash(hash)).toEqual({
+      recordId: "subj-P01",
+      instrument: "utaut2",
+      lang: "pt",
+      csqPre: false,
+      objective: "treinamento em altura",
+      utility: undefined,
+      activities: undefined,
+      studiedActivity: undefined,
+    });
+    expect(parseParticipantSurveyHash("#/surveys")).toBeNull();
   });
 });

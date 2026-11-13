@@ -300,7 +300,10 @@ class BiofeedbackLauncherApp:
         self.hub_server: object | None = None
         self.dashboard_server: ThreadingHTTPServer | None = None
         self.sensor_loop: asyncio.AbstractEventLoop | None = None
+        self.sensor_thread: threading.Thread | None = None
         self.active_sensor_mode: str = "Inativo"
+        self.is_real_mode: bool = False
+        self.log_autoscroll: bool = True
 
         self.current_session_id = "—"
         self.closing = False
@@ -515,7 +518,7 @@ class BiofeedbackLauncherApp:
 
         self.btn_polar = tk.Button(
             self.controls_body,
-            text="Iniciar Modo Polar H10 Real (Driver + Ponte)",
+            text="Modo Real",
             font=("Segoe UI", 9, "bold"),
             bg=TOKENS["surface_high"],
             fg=TOKENS["text"],
@@ -528,7 +531,7 @@ class BiofeedbackLauncherApp:
             padx=12,
             pady=8,
             cursor="hand2",
-            command=self.start_polar_stack,
+            command=self.open_real_mode_dialog,
         )
 
         self.btn_stop = tk.Button(
@@ -660,6 +663,26 @@ class BiofeedbackLauncherApp:
             self.main_container, "Eventos e logs do sistema"
         )
         self.log_panel.grid(row=3, column=0, sticky="nsew")
+
+        log_header = self.log_panel.winfo_children()[0]
+        self.log_scroll_btn = tk.Button(
+            log_header,
+            text="Pausar scroll",
+            font=("Segoe UI", 8, "bold"),
+            bg=TOKENS["surface_high"],
+            fg=TOKENS["text"],
+            activebackground=TOKENS["surface_higher"],
+            activeforeground=TOKENS["text"],
+            highlightbackground=TOKENS["line_strong"],
+            highlightthickness=1,
+            relief="solid",
+            bd=1,
+            padx=10,
+            pady=3,
+            cursor="hand2",
+            command=self.toggle_log_autoscroll,
+        )
+        self.log_scroll_btn.pack(side="right")
 
         log_inner = tk.Frame(
             self.log_body,
@@ -808,24 +831,58 @@ class BiofeedbackLauncherApp:
         timestamp = time.strftime("%H:%M:%S")
         self.log_queue.put(f"[{timestamp}] {message}\n")
 
+    def toggle_log_autoscroll(self) -> None:
+        self.log_autoscroll = not self.log_autoscroll
+        if self.log_autoscroll:
+            self.log_scroll_btn.configure(text="Pausar scroll", bg=TOKENS["surface_high"], fg=TOKENS["text"])
+            self.log_text.see("end")
+        else:
+            self.log_scroll_btn.configure(text="Retomar scroll", bg=TOKENS["warn_soft"], fg=TOKENS["warn"])
+
     def _drain_logs(self) -> None:
         try:
             while True:
                 line = self.log_queue.get_nowait()
                 self.log_text.insert("end", line)
-                self.log_text.see("end")
+                if self.log_autoscroll:
+                    self.log_text.see("end")
         except queue.Empty:
             pass
         if not self.closing:
             self.root.after(120, self._drain_logs)
 
-    def _ensure_core_services(self) -> None:
+    def _stop_hub_server(self) -> None:
+        server = self.hub_server
+        self.hub_server = None
+        if server is not None and hasattr(server, "should_exit"):
+            setattr(server, "should_exit", True)
+            for _ in range(30):
+                if not is_port_in_use(self.hub_port):
+                    break
+                time.sleep(0.15)
+        if is_port_in_use(self.hub_port):
+            free_port_on_windows(self.hub_port)
+            time.sleep(0.25)
+
+    def _ensure_core_services(
+        self,
+        *,
+        include_simulator: bool = True,
+        lsl_enabled: bool = True,
+        session_prefix: str = "session",
+        force_restart_hub: bool = False,
+    ) -> None:
+        if force_restart_hub and self.hub_server is not None:
+            self._stop_hub_server()
+
         # 1) Hub (:8787)
         if self.hub_server is None:
             if is_port_in_use(self.hub_port):
                 self.log(f"Liberando porta {self.hub_port} de processo anterior...")
                 free_port_on_windows(self.hub_port)
                 time.sleep(0.3)
+
+            new_session_id = f"{session_prefix}-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}"
 
             def _run_hub() -> None:
                 import uvicorn
@@ -835,12 +892,16 @@ class BiofeedbackLauncherApp:
                 os.environ["BIOFEEDBACK_HUB_HOST"] = "0.0.0.0"
                 os.environ["BIOFEEDBACK_HUB_PORT"] = str(self.hub_port)
                 os.environ["BIOFEEDBACK_HUB_LOG_DIR"] = str(self.sessions_dir)
+                os.environ["BIOFEEDBACK_SESSION_ID"] = new_session_id
+                os.environ["BIOFEEDBACK_INCLUDE_SIMULATOR"] = "1" if include_simulator else "0"
+                os.environ["BIOFEEDBACK_LSL_ENABLED"] = "1" if lsl_enabled else "0"
                 cfg = load_config()
                 app = create_app(cfg)
                 uv_cfg = uvicorn.Config(app, host="0.0.0.0", port=self.hub_port, log_level="info", log_config=None)
                 server = uvicorn.Server(uv_cfg)
                 self.hub_server = server
-                self.log(f"[hub] Biofeedback Hub ativo em http://127.0.0.1:{self.hub_port} (sessão: {cfg.session_id})")
+                mode_label = "DEMO" if include_simulator else "REAL"
+                self.log(f"[hub] Biofeedback Hub ({mode_label}) ativo em http://127.0.0.1:{self.hub_port} (sessão: {cfg.session_id})")
                 asyncio.run(server.serve())
 
             threading.Thread(target=_run_hub, daemon=True).start()
@@ -861,19 +922,33 @@ class BiofeedbackLauncherApp:
 
     def stop_sensors(self) -> None:
         loop = self.sensor_loop
+        thread = self.sensor_thread
         self.sensor_loop = None
+        self.sensor_thread = None
         self.active_sensor_mode = "Inativo"
         if loop is not None and loop.is_running():
             def _cancel_all() -> None:
                 for task in asyncio.all_tasks(loop):
                     task.cancel()
-            loop.call_soon_threadsafe(_cancel_all)
+            try:
+                loop.call_soon_threadsafe(_cancel_all)
+            except Exception:
+                pass
+        if thread is not None and thread.is_alive() and thread is not threading.current_thread():
+            thread.join(timeout=1.5)
         self.log("Sensores encerrados.")
 
     def start_demo_stack(self, open_browser: bool = False) -> None:
         def _task() -> None:
             self.stop_sensors()
-            self._ensure_core_services()
+            need_restart = self.is_real_mode
+            self.is_real_mode = False
+            self._ensure_core_services(
+                include_simulator=True,
+                lsl_enabled=True,
+                session_prefix="session-demo",
+                force_restart_hub=need_restart,
+            )
 
             for _ in range(30):
                 if fetch_hub_health(self.hub_port) is not None:
@@ -893,12 +968,16 @@ class BiofeedbackLauncherApp:
                 self.log(f"[sim] Conectado ao Hub ({self.active_sensor_mode}) -> enviando hrv.raw + ECG sintético")
                 try:
                     loop.run_until_complete(run_client(ws_url, "hrv-ecg", None))
+                except asyncio.CancelledError:
+                    pass
                 except Exception:
                     pass
                 finally:
                     loop.close()
 
-            threading.Thread(target=_sensor_thread, daemon=True).start()
+            t = threading.Thread(target=_sensor_thread, daemon=True)
+            self.sensor_thread = t
+            t.start()
 
             if open_browser:
                 time.sleep(0.4)
@@ -906,25 +985,159 @@ class BiofeedbackLauncherApp:
 
         threading.Thread(target=_task, daemon=True).start()
 
+    def open_real_mode_dialog(self) -> None:
+        tk = self.tk
+        dlg = tk.Toplevel(self.root)
+        dlg.title("Modo Real — Selecionar Sensores")
+        dlg.configure(bg=TOKENS["surface"])
+        dlg.resizable(False, False)
+        dlg.transient(self.root)
+        dlg.grab_set()
+
+        frame = tk.Frame(dlg, bg=TOKENS["surface"], padx=20, pady=16)
+        frame.pack(fill="both", expand=True)
+
+        tk.Label(
+            frame,
+            text="Selecionar Sensores para Sessão Real",
+            font=("Segoe UI", 11, "bold"),
+            fg=TOKENS["text"],
+            bg=TOKENS["surface"],
+            anchor="w",
+        ).pack(fill="x", pady=(0, 4))
+
+        tk.Label(
+            frame,
+            text="Ao iniciar o Modo Real, a sessão demo é encerrada e uma nova sessão real é criada.",
+            font=("Segoe UI", 9),
+            fg=TOKENS["muted"],
+            bg=TOKENS["surface"],
+            anchor="w",
+            wraplength=380,
+            justify="left",
+        ).pack(fill="x", pady=(0, 12))
+
+        polar_var = tk.BooleanVar(value=True)
+        lsl_var = tk.BooleanVar(value=True)
+
+        tk.Checkbutton(
+            frame,
+            text="Polar H10 (ECG / HR / RR via Bluetooth BLE)",
+            variable=polar_var,
+            font=("Segoe UI", 9, "bold"),
+            fg=TOKENS["text"],
+            bg=TOKENS["surface"],
+            activebackground=TOKENS["surface"],
+            selectcolor=TOKENS["surface_high"],
+            anchor="w",
+        ).pack(fill="x", pady=4)
+
+        tk.Checkbutton(
+            frame,
+            text="Descoberta LSL (Lab Streaming Layer — EEG / outros)",
+            variable=lsl_var,
+            font=("Segoe UI", 9, "bold"),
+            fg=TOKENS["text"],
+            bg=TOKENS["surface"],
+            activebackground=TOKENS["surface"],
+            selectcolor=TOKENS["surface_high"],
+            anchor="w",
+        ).pack(fill="x", pady=4)
+
+        tk.Label(
+            frame,
+            text="Clientes WebSocket externos (ex.: Unreal Engine) também poderão se conectar normalmente em ws://127.0.0.1:8787/ws.",
+            font=("Segoe UI", 8),
+            fg=TOKENS["muted"],
+            bg=TOKENS["surface"],
+            anchor="w",
+            wraplength=380,
+            justify="left",
+        ).pack(fill="x", pady=(10, 14))
+
+        btn_row = tk.Frame(frame, bg=TOKENS["surface"])
+        btn_row.pack(fill="x")
+
+        def _confirm() -> None:
+            use_polar = bool(polar_var.get())
+            use_lsl = bool(lsl_var.get())
+            dlg.destroy()
+            self.start_real_stack(use_polar=use_polar, use_lsl=use_lsl)
+
+        tk.Button(
+            btn_row,
+            text="Cancelar",
+            font=("Segoe UI", 9),
+            bg=TOKENS["surface_high"],
+            fg=TOKENS["text"],
+            relief="solid",
+            bd=1,
+            padx=12,
+            pady=6,
+            cursor="hand2",
+            command=dlg.destroy,
+        ).pack(side="right", padx=(8, 0))
+
+        tk.Button(
+            btn_row,
+            text="Iniciar Sessão Real",
+            font=("Segoe UI", 9, "bold"),
+            bg=TOKENS["primary"],
+            fg="#ffffff",
+            activebackground=TOKENS["primary_strong"],
+            activeforeground="#ffffff",
+            relief="flat",
+            bd=0,
+            padx=14,
+            pady=6,
+            cursor="hand2",
+            command=_confirm,
+        ).pack(side="right")
+
+        dlg.update_idletasks()
+        x = self.root.winfo_rootx() + max(20, (self.root.winfo_width() - dlg.winfo_width()) // 2)
+        y = self.root.winfo_rooty() + max(20, (self.root.winfo_height() - dlg.winfo_height()) // 2)
+        dlg.geometry(f"+{x}+{y}")
+
     def start_polar_stack(self) -> None:
+        self.start_real_stack(use_polar=True, use_lsl=True)
+
+    def start_real_stack(self, *, use_polar: bool = True, use_lsl: bool = True) -> None:
         def _task() -> None:
             self.stop_sensors()
-            self._ensure_core_services()
+            self.is_real_mode = True
+            self.log("[modo-real] Encerrando sessão demo e iniciando nova sessão real...")
+            self._ensure_core_services(
+                include_simulator=False,
+                lsl_enabled=use_lsl,
+                session_prefix="session-real",
+                force_restart_hub=True,
+            )
 
-            for _ in range(30):
+            for _ in range(40):
                 if fetch_hub_health(self.hub_port) is not None:
                     break
                 time.sleep(0.2)
 
-            self.active_sensor_mode = "Polar H10 Real"
+            if not use_polar:
+                self.active_sensor_mode = "LSL Real" if use_lsl else "Hub Real (WebSocket)"
+                self.log(f"[modo-real] Sessão real pronta ({self.active_sensor_mode}).")
+                return
+
+            self.active_sensor_mode = "Polar H10 + LSL" if use_lsl else "Polar H10 Real"
 
             def _polar_thread() -> None:
-                from biofeedback_hub.tools.polarh10_client import async_main as bridge_main
-                polar_dir = resolve_polar_dir()
-                os.chdir(polar_dir)
-                if str(polar_dir) not in sys.path:
-                    sys.path.insert(0, str(polar_dir))
-                import main as polar_main
+                try:
+                    from biofeedback_hub.tools.polarh10_client import async_main as bridge_main
+                    polar_dir = resolve_polar_dir()
+                    os.chdir(polar_dir)
+                    if str(polar_dir) not in sys.path:
+                        sys.path.insert(0, str(polar_dir))
+                    import main as polar_main
+                except Exception as exc:
+                    self.active_sensor_mode = "Erro Polar"
+                    self.log(f"[polar] ERRO ao carregar driver Polar H10: {exc}")
+                    return
 
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
@@ -950,12 +1163,16 @@ class BiofeedbackLauncherApp:
                 self.log("[polar] Iniciando Driver Polar H10 (:8765) + Ponte Polar -> Hub (:8787)...")
                 try:
                     loop.run_until_complete(_runner())
+                except asyncio.CancelledError:
+                    pass
                 except Exception as exc:
                     self.log(f"[polar] Aviso: {exc}")
                 finally:
                     loop.close()
 
-            threading.Thread(target=_polar_thread, daemon=True).start()
+            t = threading.Thread(target=_polar_thread, daemon=True)
+            self.sensor_thread = t
+            t.start()
 
         threading.Thread(target=_task, daemon=True).start()
 

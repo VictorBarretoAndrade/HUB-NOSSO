@@ -187,13 +187,8 @@ export function SurveyFormRunner({
   return (
     <div className="survey-analytics-stack">
       {/* Seletor rápido de instrumento com status de preenchimento do sujeito atual */}
-      <div className="survey-toolbar-bar" style={{ marginBottom: 0, justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span className="eyebrow" style={{ margin: 0 }}>Modo de Aplicação</span>
-          <span className="muted-copy" style={{ fontSize: 13 }}>
-            {showLiveScore ? "Modo Depuração / Operador (escores visíveis)" : "Modo Participante (escores ocultos para não enviesar respostas)"}
-          </span>
-        </div>
+      <div className="survey-toolbar-bar" style={{ marginBottom: 0, justifyContent: "space-between", alignItems: "center" }}>
+        <span className="eyebrow" style={{ margin: 0 }}>Modo de Aplicação</span>
         <button
           className="mini-button"
           type="button"
@@ -218,10 +213,7 @@ export function SurveyFormRunner({
             >
               <div className="survey-instrument-card-top">
                 <strong>{meta.shortLabel}</strong>
-                <StatusPill
-                  tone={isCompleted ? "ok" : "muted"}
-                  label={isCompleted ? "Registrado" : "Pendente"}
-                />
+                {isCompleted && <StatusPill tone="ok" label="Registrado" />}
               </div>
               <p className="survey-instrument-card-title">{meta.title[lang]}</p>
               <span className="survey-instrument-card-meta">{meta.scaleLabel[lang]}</span>
