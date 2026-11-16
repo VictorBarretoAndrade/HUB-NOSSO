@@ -18,6 +18,7 @@ export interface StreamBuffer {
   queue: (event: StreamEvent, captureInExperience: boolean) => void;
   capture: (event: StreamEvent) => void;
   discardQueued: () => void;
+  clearLiveEvents: () => void;
 }
 
 export function useStreamBuffer(initialExperienceEvents: StreamEvent[]): StreamBuffer {
@@ -89,7 +90,13 @@ export function useStreamBuffer(initialExperienceEvents: StreamEvent[]): StreamB
     experienceQueueRef.current = [];
   }, [cancelScheduledFlush]);
 
+  const clearLiveEvents = useCallback(() => {
+    cancelScheduledFlush();
+    liveQueueRef.current = [];
+    setEvents([]);
+  }, [cancelScheduledFlush]);
+
   useEffect(() => discardQueued, [discardQueued]);
 
-  return { events, experienceEvents, pushNow, queue, capture, discardQueued };
+  return { events, experienceEvents, pushNow, queue, capture, discardQueued, clearLiveEvents };
 }

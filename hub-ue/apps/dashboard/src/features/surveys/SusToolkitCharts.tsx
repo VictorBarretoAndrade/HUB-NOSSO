@@ -149,7 +149,7 @@ export function SusToolkitCharts({ analytics, lang }: SusToolkitChartsProps) {
           <table className="data-table report-table">
             <thead>
               <tr>
-                <th>Sistema / Estudo</th>
+                <th>Experiência / Estudo</th>
                 <th>N</th>
                 <th>Min</th>
                 <th>1st Quartile</th>

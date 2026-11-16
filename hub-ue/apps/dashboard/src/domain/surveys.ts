@@ -16,6 +16,7 @@ import type {
 } from "./surveyInstruments";
 
 export const SURVEYS_STORAGE_KEY = "biofeedback-dashboard.surveys.v1";
+export const EXPERIENCES_STORAGE_KEY = "biofeedback-dashboard.experiences.v1";
 export const SURVEYS_SCHEMA_VERSION = 1 as const;
 
 export type SusAdjectiveRating =
@@ -844,6 +845,41 @@ export function upsertSurveyRecord(
 
 export function deleteSurveyRecord(records: SubjectSurveyRecord[], id: string): SubjectSurveyRecord[] {
   return records.filter((item) => item.id !== id);
+}
+
+export function isSampleSurveyRecord(record: SubjectSurveyRecord): boolean {
+  return (
+    record.id.startsWith("sample-selective-") ||
+    Boolean(record.runId && record.runId.startsWith("session-demo"))
+  );
+}
+
+export function loadExperiences(storage: KeyValueStorage): string[] {
+  const raw = storage.getItem(EXPERIENCES_STORAGE_KEY);
+  if (!raw) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return Array.from(
+      new Set(
+        parsed
+          .filter((item): item is string => typeof item === "string")
+          .map((item) => item.trim())
+          .filter(Boolean),
+      ),
+    );
+  } catch {
+    return [];
+  }
+}
+
+export function saveExperiences(storage: KeyValueStorage, experiences: string[]): void {
+  const clean = Array.from(new Set(experiences.map((item) => item.trim()).filter(Boolean)));
+  storage.setItem(EXPERIENCES_STORAGE_KEY, JSON.stringify(clean));
 }
 
 /**

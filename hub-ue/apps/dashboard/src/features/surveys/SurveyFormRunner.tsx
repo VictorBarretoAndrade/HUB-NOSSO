@@ -215,8 +215,7 @@ export function SurveyFormRunner({
                 <strong>{meta.shortLabel}</strong>
                 {isCompleted && <StatusPill tone="ok" label="Registrado" />}
               </div>
-              <p className="survey-instrument-card-title">{meta.title[lang]}</p>
-              <span className="survey-instrument-card-meta">{meta.scaleLabel[lang]}</span>
+              <span className="survey-instrument-card-meta">{meta.title[lang]}</span>
             </button>
           );
         })}

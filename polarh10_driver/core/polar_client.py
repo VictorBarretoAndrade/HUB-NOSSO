@@ -3,7 +3,22 @@ import logging
 import time
 
 from bleak import BleakScanner
-from polar_python import PolarDevice, MeasurementSettings, SettingType, ECGData
+
+try:
+    from polar_python import PolarDevice, MeasurementSettings, SettingType, ECGData
+
+    MEASUREMENT_TYPE_ECG = "ECG"
+    SETTING_SAMPLE_RATE = "SAMPLE_RATE"
+    SETTING_RESOLUTION = "RESOLUTION"
+except ImportError:
+    from polar_python import PolarDevice
+    from polar_python.constants import PmdMeasurementType, PmdSettingType
+    from polar_python.models import ECGData, MeasurementSettings
+
+    SettingType = MeasurementSettings.SettingType
+    MEASUREMENT_TYPE_ECG = PmdMeasurementType.ECG
+    SETTING_SAMPLE_RATE = PmdSettingType.SAMPLE_RATE
+    SETTING_RESOLUTION = PmdSettingType.RESOLUTION
 
 from core.signal_processor import SignalProcessor
 
@@ -18,11 +33,6 @@ PACKET_TYPE_ECG = "ecg"
 
 # ECG data attribute candidates (library-dependent variability)
 ECG_SAMPLE_KEYS = ("samples", "values", "ecg", "data")
-
-# Measurement configuration
-MEASUREMENT_TYPE_ECG = "ECG"
-SETTING_SAMPLE_RATE = "SAMPLE_RATE"
-SETTING_RESOLUTION = "RESOLUTION"
 
 
 class PolarClient:

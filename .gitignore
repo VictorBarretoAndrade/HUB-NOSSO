@@ -17,6 +17,7 @@ dist/
 **/dist/
 build/
 *.tsbuildinfo
+BiofeedbackHub.exe
 
 # --- Hub runtime data / session logs (não commitar dados de sessão) ---
 data/sessions/

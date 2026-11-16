@@ -15,10 +15,14 @@ import { deriveManagedSensors, sensorPublishTopics } from "../domain/sensorManag
 import { deriveSensorDataStream, deriveSensorTelemetrySummaries, serializeSensorDataStreamJson } from "../domain/sensorTelemetry";
 import { deriveSessionState } from "../domain/sessionState";
 import {
+  EXPERIENCES_STORAGE_KEY,
   SURVEYS_STORAGE_KEY,
   createSampleSurveyRecords,
   deleteSurveyRecord,
+  isSampleSurveyRecord,
+  loadExperiences,
   loadSurveyRecords,
+  saveExperiences,
   saveSurveyRecords,
   upsertSurveyRecord,
 } from "../domain/surveys";
@@ -56,6 +60,10 @@ export function useDashboard() {
   const [surveyRecords, setSurveyRecords] = useState<SubjectSurveyRecord[]>(() => {
     return loadSurveyRecords(browserStorage);
   });
+  const [experiences, setExperiences] = useState<string[]>(() => {
+    return loadExperiences(browserStorage);
+  });
+  const lastClearedRealSessionRef = useRef<string | null>(null);
   const [restoredSession] = useState(() => loadExperienceSession(browserStorage));
   const runRef = useRef<ExperienceRunState>(restoredSession?.experienceRun ?? resetExperienceRun());
   // O socket e o polling nascem antes do lifecycle; os callbacks o alcançam por esta ref.
@@ -221,7 +229,35 @@ export function useDashboard() {
 
   const clearAllSurveys = useCallback(() => {
     saveSurveyRecords(browserStorage, []);
+    saveExperiences(browserStorage, []);
     setSurveyRecords([]);
+    setExperiences([]);
+  }, []);
+
+  const addExperience = useCallback((name: string) => {
+    const clean = name.trim();
+    if (!clean) return;
+    setExperiences((prev) => {
+      if (prev.includes(clean)) return prev;
+      const next = [...prev, clean];
+      saveExperiences(browserStorage, next);
+      return next;
+    });
+  }, []);
+
+  const removeExperience = useCallback((name: string) => {
+    setExperiences((prev) => {
+      const next = prev.filter((item) => item !== name);
+      saveExperiences(browserStorage, next);
+      return next;
+    });
+    setSurveyRecords((prev) => {
+      const next = prev.filter((record) => record.systemName !== name);
+      if (next.length !== prev.length) {
+        saveSurveyRecords(browserStorage, next);
+      }
+      return next;
+    });
   }, []);
 
   useEffect(() => {
@@ -229,10 +265,43 @@ export function useDashboard() {
       if (event.key === SURVEYS_STORAGE_KEY) {
         setSurveyRecords(loadSurveyRecords(browserStorage));
       }
+      if (event.key === EXPERIENCES_STORAGE_KEY) {
+        setExperiences(loadExperiences(browserStorage));
+      }
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
+
+  const currentHubSessionId = hub.health?.sessionId;
+  const { clearLiveEvents } = stream;
+  useEffect(() => {
+    if (!currentHubSessionId || !currentHubSessionId.startsWith("session-real-")) {
+      return;
+    }
+    if (lastClearedRealSessionRef.current === currentHubSessionId) {
+      return;
+    }
+    lastClearedRealSessionRef.current = currentHubSessionId;
+
+    // Ao mudar para o modo real, limpa eventos simulados do Ao Vivo e dados mockados da Pesquisa
+    clearLiveEvents();
+    setSurveyRecords((prev) => {
+      const next = prev.filter((r) => !isSampleSurveyRecord(r));
+      if (next.length !== prev.length) {
+        saveSurveyRecords(browserStorage, next);
+      }
+      return next;
+    });
+    setExperiences((prev) => {
+      const demoNames = new Set(["Trabalho em Altura em RV (IVE)"]);
+      const next = prev.filter((name) => !demoNames.has(name));
+      if (next.length !== prev.length) {
+        saveExperiences(browserStorage, next);
+      }
+      return next;
+    });
+  }, [clearLiveEvents, currentHubSessionId]);
 
   return {
     settings,
@@ -254,6 +323,9 @@ export function useDashboard() {
     addMarker,
     exportSensorDataStream,
     surveyRecords,
+    experiences,
+    addExperience,
+    removeExperience,
     upsertSurvey,
     deleteSurvey,
     importSurveyRecords,

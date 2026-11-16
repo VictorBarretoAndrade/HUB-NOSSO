@@ -18,6 +18,11 @@ const CIMATEC_ADVISORS: TeamMember[] = [
     role: "Orientador de Gestão de Projeto e Coordenador da Trilha Profissional",
     initials: "GS",
   },
+  {
+    name: "Prof. Dr. Michell Thompson Ferreira Santiago",
+    role: "Orientador de Gestão de Projeto e Coordenador da Trilha Profissional",
+    initials: "MT",
+  },
 ];
 
 const CIMATEC_DEVELOPERS: TeamMember[] = [
@@ -43,11 +48,17 @@ const CIMATEC_DEVELOPERS: TeamMember[] = [
   },
 ];
 
-const INCITE_REPRESENTATIVE: TeamMember = {
-  name: "Ingrid Winkler",
-  role: "Coordenadora e representante do laboratório INCITE",
-  initials: "IW",
-};
+const INCITE_REPRESENTATIVES: TeamMember[] = [
+  {
+    name: "Prof Dra. Ingrid Winkler",
+    role: "Coordenadora e representante do laboratório INCITE",
+    initials: "IW",
+  },
+  {
+    name: "Yasmin Thasla",
+    initials: "YT",
+  },
+];
 
 const INCITE_DEVELOPERS: TeamMember[] = [
   {
@@ -102,16 +113,50 @@ export function CreditsView() {
           </div>
 
           <p className="credits-statement-normal">
-            O sistema BiofeedbackHub é resultado de um projeto desenvolvido por uma equipe de estudantes do curso
+            O sistema BiofeedbackHub é resultado de um projeto desenvolvido pelo HIIVE Lab estudantes do curso
             de Engenharia de Computação da Universidade SENAI CIMATEC, no âmbito da Trilha Técnico-Gestor.
           </p>
         </div>
       </section>
 
-      {/* Grade com SENAI CIMATEC e INCITE */}
+      {/* Grade com HIIVE Lab / INCITE e Equipe Técnico Gestor */}
       <div className="credits-grid overview-wide">
-        {/* Painel CIMATEC */}
-        <Panel title="Universidade SENAI CIMATEC">
+        {/* Painel HIIVE Lab / INCITE */}
+        <Panel title="HIIVE Lab / INCITE Indústria 5.0">
+          {/* Representante */}
+          <div className="credits-section-header">
+            <div className="credits-section-icon">
+              <Building2 aria-hidden size={18} />
+            </div>
+            <div>
+              <h3 className="credits-section-title">Coordenação HIIVE Lab</h3>
+            </div>
+          </div>
+          <ul className="credits-list">
+            {INCITE_REPRESENTATIVES.map((rep) => (
+              <MemberCard key={rep.name} member={rep} />
+            ))}
+          </ul>
+
+          {/* Desenvolvedores INCITE */}
+          <div className="credits-section-header" style={{ marginTop: 20 }}>
+            <div className="credits-section-icon">
+              <Sparkles aria-hidden size={18} />
+            </div>
+            <div>
+              <h3 className="credits-section-title">Desenvolvedores do Laboratório INCITE</h3>
+              <p className="credits-section-sub">Equipe técnica de desenvolvimento da INCITE</p>
+            </div>
+          </div>
+          <ul className="credits-list">
+            {INCITE_DEVELOPERS.map((dev) => (
+              <MemberCard key={dev.name} member={dev} />
+            ))}
+          </ul>
+        </Panel>
+
+        {/* Painel Equipe Técnico Gestor */}
+        <Panel title="Equipe Técnico Gestor">
           {/* Orientação */}
           <div className="credits-section-header">
             <div className="credits-section-icon">
@@ -136,44 +181,12 @@ export function CreditsView() {
             <div>
               <h3 className="credits-section-title">Desenvolvedores e Equipe do Projeto</h3>
               <p className="credits-section-sub">
-                Estudantes do curso de Engenharia de Computação · SENAI CIMATEC
+                Equipe Técnico Gestor · SENAI CIMATEC
               </p>
             </div>
           </div>
           <ul className="credits-list">
             {CIMATEC_DEVELOPERS.map((dev) => (
-              <MemberCard key={dev.name} member={dev} />
-            ))}
-          </ul>
-        </Panel>
-
-        {/* Painel INCITE */}
-        <Panel title="Empresa Demandante: INCITE Indústria 5.0">
-          {/* Representante */}
-          <div className="credits-section-header">
-            <div className="credits-section-icon">
-              <Building2 aria-hidden size={18} />
-            </div>
-            <div>
-              <h3 className="credits-section-title">Representante da Empresa Demandante</h3>
-            </div>
-          </div>
-          <ul className="credits-list">
-            <MemberCard member={INCITE_REPRESENTATIVE} />
-          </ul>
-
-          {/* Desenvolvedores INCITE */}
-          <div className="credits-section-header" style={{ marginTop: 20 }}>
-            <div className="credits-section-icon">
-              <Sparkles aria-hidden size={18} />
-            </div>
-            <div>
-              <h3 className="credits-section-title">Desenvolvedores do Laboratório INCITE</h3>
-              <p className="credits-section-sub">Equipe técnica de desenvolvimento da INCITE</p>
-            </div>
-          </div>
-          <ul className="credits-list">
-            {INCITE_DEVELOPERS.map((dev) => (
               <MemberCard key={dev.name} member={dev} />
             ))}
           </ul>

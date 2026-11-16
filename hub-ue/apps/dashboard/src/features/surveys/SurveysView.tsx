@@ -74,6 +74,9 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
     notify,
     setup,
     surveyRecords,
+    experiences,
+    addExperience,
+    removeExperience,
     upsertSurvey,
     deleteSurvey,
     importSurveyRecords,
@@ -86,6 +89,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
   const [activeInstrument, setActiveInstrument] = useState<SurveyInstrumentId>("sus");
   const [analyticsInstrument, setAnalyticsInstrument] = useState<SurveyInstrumentId>("sus");
   const [showInlineRunner, setShowInlineRunner] = useState<boolean>(false);
+  const [showManager, setShowManager] = useState<boolean>(false);
   const [launchCsqPre, setLaunchCsqPre] = useState<boolean>(false);
   const [lang, setLang] = useState<SurveyLanguage>("pt");
   const [launchPlaceholders, setLaunchPlaceholders] = useState<Utaut2Placeholders>(
@@ -96,7 +100,10 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
     () => surveyRecords[0]?.id ?? "",
   );
   const [newSubjectId, setNewSubjectId] = useState("");
-  const [newSystemName, setNewSystemName] = useState("Ambiente Virtual (IVE)");
+  const [newExperienceInput, setNewExperienceInput] = useState("");
+  const [selectedExperience, setSelectedExperience] = useState<string>(
+    () => experiences[0] ?? surveyRecords[0]?.systemName ?? "Ambiente Virtual (IVE)",
+  );
   const [csvPasteText, setCsvPasteText] = useState("");
   const [importReplaceMode, setImportReplaceMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -139,9 +146,19 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
   }, [activeSubjectId, currentSessionSummary, run.label, run.runId, selectedRecordId, setup.subjectSnapshot, surveyRecords]);
 
   const distinctSystems = useMemo(
-    () => Array.from(new Set(surveyRecords.map((r) => r.systemName).filter(Boolean))),
-    [surveyRecords],
+    () =>
+      Array.from(
+        new Set([...experiences, ...surveyRecords.map((r) => r.systemName).filter(Boolean)]),
+      ),
+    [experiences, surveyRecords],
   );
+
+  const activeExperienceValue = useMemo(() => {
+    if (distinctSystems.includes(selectedExperience)) {
+      return selectedExperience;
+    }
+    return distinctSystems[0] ?? "";
+  }, [distinctSystems, selectedExperience]);
 
   const filteredRecords = useMemo(
     () =>
@@ -155,7 +172,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
     () =>
       computeSusStudyAnalytics(
         filteredRecords,
-        selectedSystemFilter === "__ALL__" ? "Todos os Sistemas / Sessões" : selectedSystemFilter,
+        selectedSystemFilter === "__ALL__" ? "Todas as Experiências / Sessões" : selectedSystemFilter,
       ),
     [filteredRecords, selectedSystemFilter],
   );
@@ -190,7 +207,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
       : {
           id: `session-${run.runId ?? Date.now()}`,
           subjectId: activeSubjectId,
-          systemName: run.label || newSystemName || "Ambiente Virtual (IVE)",
+          systemName: run.label || activeExperienceValue || "Ambiente Virtual (IVE)",
           runId: run.runId,
           createdAt: now,
           updatedAt: now,
@@ -233,11 +250,15 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
 
   const handleCreateSubjectRecord = () => {
     const cleanId = newSubjectId.trim() || `P${String(surveyRecords.length + 1).padStart(2, "0")}`;
+    const targetExperience = activeExperienceValue || "Ambiente Virtual (IVE)";
+    if (!distinctSystems.includes(targetExperience)) {
+      addExperience(targetExperience);
+    }
     const now = new Date().toISOString();
     const record: SubjectSurveyRecord = {
       id: `subj-${cleanId}-${Date.now()}`,
       subjectId: cleanId,
-      systemName: newSystemName.trim() || "Ambiente Virtual (IVE)",
+      systemName: targetExperience,
       runId: run.runId,
       createdAt: now,
       updatedAt: now,
@@ -250,7 +271,35 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
     upsertSurvey(record);
     setSelectedRecordId(record.id);
     setNewSubjectId("");
-    notify(`Sujeito ${cleanId} criado para aplicação dos formulários.`);
+    notify(`Sujeito ${cleanId} criado na experiência "${targetExperience}".`);
+  };
+
+  const handleAddExperience = () => {
+    const clean = newExperienceInput.trim();
+    if (!clean) {
+      notify("Digite o nome da nova experiência.", "error");
+      return;
+    }
+    addExperience(clean);
+    setSelectedExperience(clean);
+    setNewExperienceInput("");
+    notify(`Experiência "${clean}" adicionada.`);
+  };
+
+  const handleRemoveExperience = (expName: string) => {
+    if (!expName) return;
+    if (
+      !window.confirm(
+        `Remover a experiência "${expName}" e os sujeitos vinculados exclusivamente a ela?`,
+      )
+    ) {
+      return;
+    }
+    removeExperience(expName);
+    if (selectedSystemFilter === expName) {
+      setSelectedSystemFilter("__ALL__");
+    }
+    notify(`Experiência "${expName}" removida.`);
   };
 
   const handleSaveInstrument = (updated: SubjectSurveyRecord, instrumentLabel: string) => {
@@ -297,7 +346,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
 
   const handleImportCsvText = (rawText: string) => {
     try {
-      const result = parseSurveyCsv(rawText, newSystemName || "Ambiente Importado");
+      const result = parseSurveyCsv(rawText, activeExperienceValue || "Experiência Importada");
       if (result.importedCount === 0) {
         notify("Nenhum registro válido encontrado no CSV.", "error");
         return;
@@ -365,9 +414,9 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
           =================================================================== */}
       {mainMode === "apply" && (
         <div className="report-wide survey-analytics-stack">
-          {/* Seção 1: Sujeito e Sessão em Foco */}
+          {/* Seção 1: Sujeito e Experiência em Foco + Botão Gerenciar */}
           <Panel
-            title="1. Sujeito e Sessão em Foco"
+            title="1. Sujeito e Experiência em Foco"
             action={
               <button className="mini-button" type="button" onClick={() => linkCurrentSession(true)}>
                 <FolderSync aria-hidden size={14} /> Sincronizar Sessão Atual ({activeSubjectId})
@@ -395,9 +444,28 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
               </div>
             </div>
 
-            <div className="survey-toolbar-bar" style={{ marginBottom: 0 }}>
+            {/* Seleção principal: Dropdown de Experiências + Dropdown de Sujeitos + Botão Gerenciar */}
+            <div className="survey-toolbar-bar" style={{ marginBottom: showManager ? 12 : 0 }}>
               <label>
-                <span>Sujeito / Sessão em Foco</span>
+                <span>Experiência</span>
+                <select
+                  value={activeExperienceValue}
+                  onChange={(e) => setSelectedExperience(e.target.value)}
+                >
+                  {distinctSystems.length === 0 ? (
+                    <option value="">Nenhuma experiência criada</option>
+                  ) : (
+                    distinctSystems.map((exp) => (
+                      <option key={exp} value={exp}>
+                        {exp}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+
+              <label>
+                <span>Sujeito em Foco</span>
                 <select
                   value={selectedRecord.id}
                   onChange={(e) => setSelectedRecordId(e.target.value)}
@@ -415,26 +483,89 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
                   )}
                 </select>
               </label>
-              <label>
-                <span>Novo Sujeito ID</span>
-                <input
-                  placeholder="Ex.: S-2026-015"
-                  value={newSubjectId}
-                  onChange={(e) => setNewSubjectId(e.target.value)}
-                />
-              </label>
-              <label>
-                <span>Sistema / Ambiente (System)</span>
-                <input
-                  placeholder="Ex.: Treinamento NR-35"
-                  value={newSystemName}
-                  onChange={(e) => setNewSystemName(e.target.value)}
-                />
-              </label>
-              <button className="mini-button strong" type="button" onClick={handleCreateSubjectRecord}>
-                <Plus aria-hidden size={14} /> Adicionar Sujeito
+
+              <button
+                className={`mini-button ${showManager ? "strong" : ""}`}
+                type="button"
+                onClick={() => setShowManager((prev) => !prev)}
+              >
+                <Plus aria-hidden size={14} />{" "}
+                {showManager ? "Ocultar Gerenciador" : "Gerenciar Sujeitos e Experiências"}
               </button>
             </div>
+
+            {/* Área expansível de Gerenciamento (Adicionar / Remover Sujeitos e Experiências) */}
+            {showManager && (
+              <div className="survey-analytics-stack" style={{ gap: 10 }}>
+                <div className="survey-toolbar-bar" style={{ marginBottom: 0 }}>
+                  <label>
+                    <span>Nova Experiência</span>
+                    <input
+                      placeholder="Ex.: Treinamento NR-35"
+                      value={newExperienceInput}
+                      onChange={(e) => setNewExperienceInput(e.target.value)}
+                    />
+                  </label>
+                  <button className="mini-button strong" type="button" onClick={handleAddExperience}>
+                    <Plus aria-hidden size={14} /> Adicionar Experiência
+                  </button>
+                  <button
+                    className="mini-button danger"
+                    disabled={!activeExperienceValue}
+                    title="Remove a experiência selecionada no dropdown acima"
+                    type="button"
+                    onClick={() => handleRemoveExperience(activeExperienceValue)}
+                  >
+                    <Trash2 aria-hidden size={14} /> Remover Experiência ({activeExperienceValue || "—"})
+                  </button>
+                </div>
+
+                <div className="survey-toolbar-bar" style={{ marginBottom: 0 }}>
+                  <label>
+                    <span>Novo Sujeito ID</span>
+                    <input
+                      placeholder="Ex.: S-2026-015"
+                      value={newSubjectId}
+                      onChange={(e) => setNewSubjectId(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span>Experiência do Novo Sujeito</span>
+                    <select
+                      value={activeExperienceValue}
+                      onChange={(e) => setSelectedExperience(e.target.value)}
+                    >
+                      {distinctSystems.length === 0 ? (
+                        <option value="Ambiente Virtual (IVE)">Ambiente Virtual (IVE)</option>
+                      ) : (
+                        distinctSystems.map((exp) => (
+                          <option key={exp} value={exp}>
+                            {exp}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </label>
+                  <button className="mini-button strong" type="button" onClick={handleCreateSubjectRecord}>
+                    <Plus aria-hidden size={14} /> Adicionar Sujeito
+                  </button>
+                  <button
+                    className="mini-button danger"
+                    disabled={surveyRecords.length === 0}
+                    title="Remove o sujeito atualmente selecionado no dropdown acima"
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm(`Remover o sujeito "${selectedRecord.subjectId}"?`)) {
+                        deleteSurvey(selectedRecord.id);
+                        notify(`Sujeito ${selectedRecord.subjectId} removido.`);
+                      }
+                    }}
+                  >
+                    <Trash2 aria-hidden size={14} /> Remover Sujeito ({selectedRecord.subjectId})
+                  </button>
+                </div>
+              </div>
+            )}
           </Panel>
 
           {/* Seção 2: Seleção do Tipo de Formulário e Abertura em Nova Aba */}
@@ -465,8 +596,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
                       <strong>{meta.shortLabel}</strong>
                       {isCompleted && <StatusPill tone="ok" label="Registrado" />}
                     </div>
-                    <p className="survey-instrument-card-title">{meta.title[lang]}</p>
-                    <span className="survey-instrument-card-meta">{meta.scaleLabel[lang]}</span>
+                    <span className="survey-instrument-card-meta">{meta.title[lang]}</span>
                   </button>
                 );
               })}
@@ -647,12 +777,12 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
                 </select>
               </label>
               <label>
-                <span>Filtrar por Sistema (System)</span>
+                <span>Filtrar por Experiência</span>
                 <select
                   value={selectedSystemFilter}
                   onChange={(e) => setSelectedSystemFilter(e.target.value)}
                 >
-                  <option value="__ALL__">Todos os Sistemas ({surveyRecords.length} sujeitos)</option>
+                  <option value="__ALL__">Todas as Experiências ({surveyRecords.length} sujeitos)</option>
                   {distinctSystems.map((sys) => (
                     <option key={sys} value={sys}>
                       {sys}
@@ -780,7 +910,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
                   </strong>
                 </div>
                 <div className="survey-dossier-stat">
-                  <span>Sistema / Ambiente</span>
+                  <span>Experiência</span>
                   <strong>{selectedRecord.systemName}</strong>
                 </div>
               </div>
@@ -822,7 +952,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
                     <tr>
                       <th>Sujeito</th>
                       <th>Run / Sessão</th>
-                      <th>Sistema</th>
+                      <th>Experiência</th>
                       <th>BPM Mín/Méd/Máx</th>
                       <th>RR Médio</th>
                       <th>SUS (0–100)</th>
@@ -916,7 +1046,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
       {/* SUB-ABA 2: ANÁLISE GRÁFICA (SUS TOOLKIT & SELECT-IVE) */}
       {analyzeTab === "analytics" && (
         <div className="report-wide survey-analytics-stack">
-          <Panel title="Seleção de Instrumento & Filtro de Sistema">
+          <Panel title="Seleção de Instrumento & Filtro de Experiência">
             <div className="survey-toolbar-bar">
               <div className="preset-chip-row" role="tablist" aria-label="Instrumentos para análise gráfica">
                 <button
@@ -957,12 +1087,12 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
               </div>
 
               <label>
-                <span>Filtrar por Sistema (System)</span>
+                <span>Filtrar por Experiência</span>
                 <select
                   value={selectedSystemFilter}
                   onChange={(e) => setSelectedSystemFilter(e.target.value)}
                 >
-                  <option value="__ALL__">Todos os Sistemas ({surveyRecords.length} sujeitos)</option>
+                  <option value="__ALL__">Todas as Experiências ({surveyRecords.length} sujeitos)</option>
                   {distinctSystems.map((sys) => (
                     <option key={sys} value={sys}>
                       {sys}
