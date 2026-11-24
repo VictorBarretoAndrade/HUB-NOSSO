@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "biofeedback-hub"
-version = "0.1.1.dev0"
+version = "1.0.0"
 description = "Local-first topic-centric biofeedback hub for Unreal, Quest, and external sensors."
 readme = "README.md"
 requires-python = ">=3.11"

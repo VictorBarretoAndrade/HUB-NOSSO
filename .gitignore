@@ -18,6 +18,8 @@ dist/
 build/
 *.tsbuildinfo
 BiofeedbackHub.exe
+DataTraceVR.exe
+DataTraceVR-*-source.zip
 
 # --- Hub runtime data / session logs (não commitar dados de sessão) ---
 data/sessions/

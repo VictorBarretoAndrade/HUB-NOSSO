@@ -257,7 +257,7 @@ class BiofeedbackLauncherApp:
     def __init__(self) -> None:
         if os.name == "nt":
             try:
-                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("biofeedback.hub.unified.app")
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("datatracevr.unified.app")
             except Exception:
                 pass
 

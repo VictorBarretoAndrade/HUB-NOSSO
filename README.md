@@ -1,8 +1,9 @@
-# HUB-NOSSO — Biofeedback Hub + Polar H10
+# DataTraceVR (`HUB-NOSSO`)
 
-Monorepo que reúne dois projetos que trabalham juntos para coletar, distribuir e
-visualizar sinais fisiológicos (HRV/ECG) em tempo real, integrando sensores,
-um hub central e experiências Unreal/Meta Quest.
+Plataforma integrada para coletar, distribuir, gravar, visualizar e analisar sinais
+fisiológicos (ECG/HR/RR/HRV) em tempo real, integrando sensores (como o Polar H10),
+um hub central, experiências Unreal/Meta Quest e instrumentos padronizados de pesquisa
+(framework SELECT-IVE).
 
 ```mermaid
 flowchart LR
@@ -30,6 +31,11 @@ driver e publica no hub como tópico `hrv.raw`.
 - **[PLANO-NOVAS-FEATURES.md](PLANO-NOVAS-FEATURES.md)** — análise + plano conceitual das novas features (cadastro do sujeito, modos de gravação, visualização ao vivo, export `.npy`/`.mat`).
 - [hub-ue/docs/decisions-novas-features.md](hub-ue/docs/decisions-novas-features.md) — decisões em aberto.
 - [hub-ue/docs/architecture.md](hub-ue/docs/architecture.md) · [hub-ue/docs/protocol.md](hub-ue/docs/protocol.md) — arquitetura e protocolo do hub.
+
+## Executável unificado (`DataTraceVR.exe`)
+
+Para executar toda a stack com um único clique no Windows, baixe o `DataTraceVR.exe` na aba
+**[Releases](https://github.com/VictorBarretoAndrade/HUB-NOSSO/releases)** do repositório (ou execute `Iniciar-DataTraceVR.bat` a partir do código-fonte).
 
 ## Quick start (sem o Polar)
 

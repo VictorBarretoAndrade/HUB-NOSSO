@@ -2,8 +2,8 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 
-if exist "%~dp0BiofeedbackHub.exe" (
-    start "" "%~dp0BiofeedbackHub.exe"
+if exist "%~dp0DataTraceVR.exe" (
+    start "" "%~dp0DataTraceVR.exe"
     exit /b 0
 )
 
