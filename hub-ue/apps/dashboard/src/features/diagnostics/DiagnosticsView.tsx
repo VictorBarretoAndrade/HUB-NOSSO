@@ -77,7 +77,7 @@ export function DiagnosticsView({ health, hubError, linkState, notify, settings,
 
   const exportDiagnostics = () => {
     const exportedAt = new Date().toISOString();
-    const filename = `biofeedback-diagnostico-${fileTimestamp(exportedAt)}.json`;
+    const filename = `datatracevr-diagnostico-${fileTimestamp(exportedAt)}.json`;
     // O token nunca entra no arquivo: ele pode ser compartilhado para suporte.
     const snapshot = { exportedAt, endpoint: settings.endpoint, socketState, hubError, health, status };
     downloadTextFile(filename, JSON.stringify(snapshot, null, 2), "application/json");

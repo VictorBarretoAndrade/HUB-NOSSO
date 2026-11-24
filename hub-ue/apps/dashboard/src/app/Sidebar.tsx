@@ -20,9 +20,9 @@ export function Sidebar({ activeView, hubEndpoint, onNavigate }: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="brand-block">
-        <img src="/logo.png" alt="Logo Biofeedback Hub" className="brand-logo" />
+        <img src="/logo.png" alt="Logo DataTraceVR" className="brand-logo" />
         <div className="brand-copy">
-          <p className="product-mark">Biofeedback Hub</p>
+          <p className="product-mark">DataTraceVR</p>
           <p className="operator-id" title={`Hub em ${hubEndpoint}`}>
             hub {endpointHost(hubEndpoint)}
           </p>

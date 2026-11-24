@@ -109,11 +109,11 @@ export function CreditsView() {
           </div>
 
           <div className="credits-hero-content">
-            <h2>Créditos do Projeto Biofeedback Hub</h2>
+            <h2>Créditos do Projeto DataTraceVR</h2>
           </div>
 
           <p className="credits-statement-normal">
-            O sistema BiofeedbackHub é resultado de um projeto desenvolvido pelo HIIVE Lab estudantes do curso
+            O sistema DataTraceVR é resultado de um projeto desenvolvido pelo HIIVE Lab estudantes do curso
             de Engenharia de Computação da Universidade SENAI CIMATEC, no âmbito da Trilha Técnico-Gestor.
           </p>
         </div>

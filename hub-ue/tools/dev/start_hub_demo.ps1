@@ -136,12 +136,13 @@ New-Item -ItemType Directory -Force -Path $RuntimeDir | Out-Null
 Test-PortFree -Port $HubPort -Name "Hub"
 Test-PortFree -Port $DashboardPort -Name "Dashboard"
 
+$demoSessionId = "session-demo-$([DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ'))"
 $processes = @()
 $processes += Start-DemoProcess `
     -Name "hub-demo" `
     -FilePath $PythonExe `
     -ArgumentList @("-m", "biofeedback_hub.main") `
-    -Environment @{ BIOFEEDBACK_HUB_PORT = $HubPort; BIOFEEDBACK_HUB_HOST = "0.0.0.0" }
+    -Environment @{ BIOFEEDBACK_HUB_PORT = $HubPort; BIOFEEDBACK_HUB_HOST = "0.0.0.0"; BIOFEEDBACK_SESSION_ID = $demoSessionId }
 
 $processes += Start-DemoProcess `
     -Name "dashboard-demo" `

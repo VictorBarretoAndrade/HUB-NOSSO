@@ -34,7 +34,7 @@ export function serializeSusToolkitCsv(records: SubjectSurveyRecord[]): string {
     "System",
   ].join(";");
   const rows = withSus.map((r) =>
-    [...r.sus.answers.map(String), sanitizeSemiCell(r.systemName || "Biofeedback Hub")].join(";"),
+    [...r.sus.answers.map(String), sanitizeSemiCell(r.systemName || "DataTraceVR")].join(";"),
   );
   return [header, ...rows].join("\n");
 }
@@ -184,7 +184,7 @@ export function serializeSentimentCsv(records: SubjectSurveyRecord[]): string {
 }
 
 /**
- * Exporta o CSV unificado contendo Sujeito + Sensores da Sessão + Todos os 5 Formulários.
+ * Exporta o CSV unificado contendo Participante + Sensores da Sessão + Todos os 5 Formulários.
  */
 export function serializeUnifiedSurveyCsv(records: SubjectSurveyRecord[]): string {
   const header = [

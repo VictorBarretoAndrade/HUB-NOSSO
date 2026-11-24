@@ -151,7 +151,7 @@ export function ExperienceReportPanel({
       >
         <p className="muted-copy">
           Unifique os dados biométricos desta sessão com os instrumentos psicométricos pós-exposição (SUS, IPQ, CSQ-VR,
-          UTAUT2 e Análise de Sentimento) do mesmo sujeito.
+          UTAUT2 e Análise de Sentimento) do mesmo participante.
         </p>
         <div className="report-chip-row">
           <ReportChip

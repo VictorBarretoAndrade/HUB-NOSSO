@@ -16,6 +16,7 @@ import {
   serializeUnifiedSurveyCsv,
 } from "./surveyCsv";
 import {
+  DEMO_EXPERIENCES,
   analyzeTextSentiment,
   calculateCsqVrResult,
   calculateIpqResult,
@@ -23,6 +24,10 @@ import {
   calculateSusResult,
   calculateUtaut2Result,
   createSampleSurveyRecords,
+  isDemoExperienceName,
+  isSampleSurveyRecord,
+  seedDemoSurveyData,
+  stripDemoSurveyData,
 } from "./surveys";
 
 describe("surveys & SELECT-IVE / SUS Analysis Toolkit domain", () => {
@@ -188,5 +193,34 @@ describe("surveys & SELECT-IVE / SUS Analysis Toolkit domain", () => {
     expect(parsedUnified.records[0].ipq?.globalPresence).toBe(sample[0].ipq?.globalPresence);
     expect(parsedUnified.records[0].csqVr?.post.total).toBe(sample[0].csqVr?.post.total);
     expect(parsedUnified.records[0].utaut2?.constructs.BI).toBe(sample[0].utaut2?.constructs.BI);
+  });
+
+  it("seeds mock participants and experiences in demo mode and removes only mock data in real mode", () => {
+    const realRecord = {
+      id: "subj-REAL-01",
+      subjectId: "REAL-01",
+      systemName: "Estudo Real Clínica",
+      runId: "session-real-20261123",
+      createdAt: "2026-11-23T20:00:00.000Z",
+      updatedAt: "2026-11-23T20:00:00.000Z",
+    };
+
+    const seeded = seedDemoSurveyData([realRecord], ["Estudo Real Clínica"]);
+    expect(seeded.changed).toBe(true);
+    expect(seeded.records).toHaveLength(15);
+    expect(seeded.experiences).toEqual(["Estudo Real Clínica", ...DEMO_EXPERIENCES]);
+    expect(seeded.records.filter(isSampleSurveyRecord)).toHaveLength(14);
+    expect(DEMO_EXPERIENCES.every(isDemoExperienceName)).toBe(true);
+
+    // Calling seedDemoSurveyData again is idempotent
+    const seededAgain = seedDemoSurveyData(seeded.records, seeded.experiences);
+    expect(seededAgain.changed).toBe(false);
+    expect(seededAgain.records).toHaveLength(15);
+
+    // Activating real mode strips mock participants and experiences while preserving real ones
+    const stripped = stripDemoSurveyData(seeded.records, seeded.experiences);
+    expect(stripped.changed).toBe(true);
+    expect(stripped.records).toEqual([realRecord]);
+    expect(stripped.experiences).toEqual(["Estudo Real Clínica"]);
   });
 });

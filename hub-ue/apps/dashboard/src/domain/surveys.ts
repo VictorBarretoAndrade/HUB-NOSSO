@@ -847,11 +847,67 @@ export function deleteSurveyRecord(records: SubjectSurveyRecord[], id: string): 
   return records.filter((item) => item.id !== id);
 }
 
+export const DEMO_EXPERIENCES: readonly string[] = [
+  "NR-35 Treinamento em Altura (IVE)",
+  "Inspeção de Subestação Elétrica (IVE)",
+  "Simulação de Espaço Confinado NR-33 (IVE)",
+];
+
+const ALL_DEMO_EXPERIENCE_NAMES = new Set<string>([
+  ...DEMO_EXPERIENCES,
+  "Trabalho em Altura em RV (IVE)",
+]);
+
+export function isDemoExperienceName(name: string): boolean {
+  return ALL_DEMO_EXPERIENCE_NAMES.has(name.trim());
+}
+
 export function isSampleSurveyRecord(record: SubjectSurveyRecord): boolean {
   return (
-    record.id.startsWith("sample-selective-") ||
-    Boolean(record.runId && record.runId.startsWith("session-demo"))
+    record.id.startsWith("sample-") ||
+    record.subjectId.trim().toUpperCase().startsWith("DEMO-") ||
+    Boolean(record.runId && (record.runId.startsWith("session-demo") || record.runId.startsWith("run-selective-")))
   );
+}
+
+/**
+ * Popula participantes e experiências mockadas no modo demo sem duplicar nem apagar registros reais.
+ */
+export function seedDemoSurveyData(
+  existingRecords: SubjectSurveyRecord[],
+  existingExperiences: string[],
+): { records: SubjectSurveyRecord[]; experiences: string[]; changed: boolean } {
+  const hasSamples = existingRecords.some(isSampleSurveyRecord);
+  const sampleRecords = hasSamples ? [] : createSampleSurveyRecords();
+  const existingIds = new Set(existingRecords.map((r) => r.id));
+  const recordsToAdd = sampleRecords.filter((r) => !existingIds.has(r.id));
+  const nextRecords = recordsToAdd.length > 0 ? [...existingRecords, ...recordsToAdd] : existingRecords;
+
+  const missingExperiences = DEMO_EXPERIENCES.filter((exp) => !existingExperiences.includes(exp));
+  const nextExperiences =
+    missingExperiences.length > 0 ? [...existingExperiences, ...missingExperiences] : existingExperiences;
+
+  return {
+    records: nextRecords,
+    experiences: nextExperiences,
+    changed: recordsToAdd.length > 0 || missingExperiences.length > 0,
+  };
+}
+
+/**
+ * Remove participantes e experiências mockadas do modo demo ao ativar o modo real, preservando dados reais.
+ */
+export function stripDemoSurveyData(
+  existingRecords: SubjectSurveyRecord[],
+  existingExperiences: string[],
+): { records: SubjectSurveyRecord[]; experiences: string[]; changed: boolean } {
+  const nextRecords = existingRecords.filter((r) => !isSampleSurveyRecord(r));
+  const nextExperiences = existingExperiences.filter((name) => !isDemoExperienceName(name));
+  return {
+    records: nextRecords,
+    experiences: nextExperiences,
+    changed: nextRecords.length !== existingRecords.length || nextExperiences.length !== existingExperiences.length,
+  };
 }
 
 export function loadExperiences(storage: KeyValueStorage): string[] {
@@ -1123,10 +1179,13 @@ export function createSampleSurveyRecords(now = "2026-11-11T14:00:00.000Z"): Sub
       now,
     );
 
+    const demoExperienceName =
+      idx < 6 ? DEMO_EXPERIENCES[0] : idx < 10 ? DEMO_EXPERIENCES[1] : DEMO_EXPERIENCES[2];
+
     return {
       id: `sample-${subjectId}`,
       subjectId,
-      systemName: "NR-35 Treinamento em Altura (IVE)",
+      systemName: demoExperienceName,
       runId,
       createdAt: now,
       updatedAt: now,
@@ -1148,7 +1207,7 @@ export function createSampleSurveyRecords(now = "2026-11-11T14:00:00.000Z"): Sub
       },
       sessionSummary: {
         runId,
-        label: `Sessão NR-35 #${pNum}`,
+        label: `Sessão Demo #${pNum}`,
         startedAt: "2026-11-11T13:30:00.000Z",
         endedAt: "2026-11-11T13:45:00.000Z",
         durationMs: 900_000,

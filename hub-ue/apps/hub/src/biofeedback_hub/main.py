@@ -64,7 +64,7 @@ def create_app(config: HubConfig | None = None) -> Any:
                 # A cleanup failure must not skip the final persistence attempt.
                 await session_logger.flush_async()
 
-    app = FastAPI(title="Biofeedback Hub", version="0.1.1-dev", lifespan=lifespan)
+    app = FastAPI(title="DataTraceVR", version="0.1.1-dev", lifespan=lifespan)
     app.state.session_logger = session_logger
 
     if resolved_config.cors_origins:

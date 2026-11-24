@@ -14,7 +14,9 @@ import { latestExperienceMarker } from "../domain/markers";
 import { deriveManagedSensors, sensorPublishTopics } from "../domain/sensorManager";
 import { deriveSensorDataStream, deriveSensorTelemetrySummaries, serializeSensorDataStreamJson } from "../domain/sensorTelemetry";
 import { deriveSessionState } from "../domain/sessionState";
+import { createDemoSubjectProfile, isDemoSubjectProfile } from "../domain/subjectProfile";
 import {
+  DEMO_EXPERIENCES,
   EXPERIENCES_STORAGE_KEY,
   SURVEYS_STORAGE_KEY,
   createSampleSurveyRecords,
@@ -24,13 +26,16 @@ import {
   loadSurveyRecords,
   saveExperiences,
   saveSurveyRecords,
+  seedDemoSurveyData,
+  stripDemoSurveyData,
   upsertSurveyRecord,
 } from "../domain/surveys";
 import type { SubjectSurveyRecord } from "../domain/surveys";
 import { TOPICS } from "../domain/topics";
-import type { StreamEvent } from "../domain/types";
+import type { StatusResponse, StreamEvent } from "../domain/types";
 import { downloadTextFile, fileTimestamp } from "../lib/download";
 import { browserStorage } from "../lib/storage";
+import { useLatestRef } from "../lib/useLatestRef";
 import { useCommandDispatch } from "./hooks/useCommandDispatch";
 import { useExperienceLifecycle } from "./hooks/useExperienceLifecycle";
 import type { ExperienceLifecycle } from "./hooks/useExperienceLifecycle";
@@ -48,6 +53,26 @@ const SENSOR_STREAM_ROW_LIMIT = 200;
 const PERSISTENCE_DEBOUNCE_MS = 250;
 
 export type MarkerDelivery = "command" | "annotation" | "failed";
+export type HubOperatingMode = "demo" | "real" | "unknown";
+
+function detectHubOperatingMode(
+  sessionId: string | undefined,
+  status: StatusResponse | null,
+): HubOperatingMode {
+  if (!sessionId) {
+    return "unknown";
+  }
+  if (sessionId.startsWith("session-real")) {
+    return "real";
+  }
+  if (sessionId.startsWith("session-demo")) {
+    return "demo";
+  }
+  if (status?.sensorManager?.sensors.some((sensor) => sensor.source === "simulator")) {
+    return "demo";
+  }
+  return "unknown";
+}
 
 /**
  * Compõe o estado do dashboard: configuração, retrato do hub, stream ao vivo,
@@ -63,7 +88,11 @@ export function useDashboard() {
   const [experiences, setExperiences] = useState<string[]>(() => {
     return loadExperiences(browserStorage);
   });
-  const lastClearedRealSessionRef = useRef<string | null>(null);
+  const lastHandledModeKeyRef = useRef<string | null>(null);
+  const lastOperatingModeRef = useRef<HubOperatingMode>("unknown");
+  const subjectRef = useLatestRef(setup.subject);
+  const surveyRecordsRef = useLatestRef(surveyRecords);
+  const experiencesRef = useLatestRef(experiences);
   const [restoredSession] = useState(() => loadExperienceSession(browserStorage));
   const runRef = useRef<ExperienceRunState>(restoredSession?.experienceRun ?? resetExperienceRun());
   // O socket e o polling nascem antes do lifecycle; os callbacks o alcançam por esta ref.
@@ -192,7 +221,7 @@ export function useDashboard() {
 
   const exportSensorDataStream = useCallback(() => {
     const exportedAt = new Date().toISOString();
-    const filename = `biofeedback-sensor-data-${fileTimestamp(exportedAt)}.json`;
+    const filename = `datatracevr-sensor-data-${fileTimestamp(exportedAt)}.json`;
     downloadTextFile(filename, serializeSensorDataStreamJson(sensorDataStream, exportedAt), "application/json");
     notify(`Arquivo ${filename} exportado.`);
   }, [notify, sensorDataStream]);
@@ -222,10 +251,14 @@ export function useDashboard() {
   }, []);
 
   const loadSampleSurveys = useCallback(() => {
-    const sample = createSampleSurveyRecords();
-    saveSurveyRecords(browserStorage, sample);
-    setSurveyRecords(sample);
-  }, []);
+    const nonSample = surveyRecordsRef.current.filter((r) => !isSampleSurveyRecord(r));
+    const nextRecords = [...nonSample, ...createSampleSurveyRecords()];
+    const nextExperiences = Array.from(new Set([...experiencesRef.current, ...DEMO_EXPERIENCES]));
+    saveSurveyRecords(browserStorage, nextRecords);
+    saveExperiences(browserStorage, nextExperiences);
+    setSurveyRecords(nextRecords);
+    setExperiences(nextExperiences);
+  }, [experiencesRef, surveyRecordsRef]);
 
   const clearAllSurveys = useCallback(() => {
     saveSurveyRecords(browserStorage, []);
@@ -274,34 +307,65 @@ export function useDashboard() {
   }, []);
 
   const currentHubSessionId = hub.health?.sessionId;
+  const operatingMode = detectHubOperatingMode(currentHubSessionId, status);
   const { clearLiveEvents } = stream;
+  const { setSubject, clearSubject } = setup;
   useEffect(() => {
-    if (!currentHubSessionId || !currentHubSessionId.startsWith("session-real-")) {
+    if (!currentHubSessionId || operatingMode === "unknown") {
       return;
     }
-    if (lastClearedRealSessionRef.current === currentHubSessionId) {
+    const modeKey = `${operatingMode}:${currentHubSessionId}`;
+    if (lastHandledModeKeyRef.current === modeKey) {
       return;
     }
-    lastClearedRealSessionRef.current = currentHubSessionId;
+    const previousMode = lastOperatingModeRef.current;
+    lastHandledModeKeyRef.current = modeKey;
+    lastOperatingModeRef.current = operatingMode;
 
-    // Ao mudar para o modo real, limpa eventos simulados do Ao Vivo e dados mockados da Pesquisa
+    if (operatingMode === "demo") {
+      // No modo demo, gera participantes e experiências mockadas para testes e demonstração.
+      const seeded = seedDemoSurveyData(surveyRecordsRef.current, experiencesRef.current);
+      if (seeded.changed) {
+        saveSurveyRecords(browserStorage, seeded.records);
+        saveExperiences(browserStorage, seeded.experiences);
+        setSurveyRecords(seeded.records);
+        setExperiences(seeded.experiences);
+      }
+      if (!subjectRef.current) {
+        setSubject(createDemoSubjectProfile());
+      }
+      if (previousMode === "real") {
+        notify("Modo demo ativado: participantes e experiências mockadas carregados.");
+      }
+      return;
+    }
+
+    // Ao ativar o modo real, limpa eventos simulados do Ao Vivo e remove participantes/experiências mockados.
     clearLiveEvents();
-    setSurveyRecords((prev) => {
-      const next = prev.filter((r) => !isSampleSurveyRecord(r));
-      if (next.length !== prev.length) {
-        saveSurveyRecords(browserStorage, next);
-      }
-      return next;
-    });
-    setExperiences((prev) => {
-      const demoNames = new Set(["Trabalho em Altura em RV (IVE)"]);
-      const next = prev.filter((name) => !demoNames.has(name));
-      if (next.length !== prev.length) {
-        saveExperiences(browserStorage, next);
-      }
-      return next;
-    });
-  }, [clearLiveEvents, currentHubSessionId]);
+    const stripped = stripDemoSurveyData(surveyRecordsRef.current, experiencesRef.current);
+    if (stripped.changed) {
+      saveSurveyRecords(browserStorage, stripped.records);
+      saveExperiences(browserStorage, stripped.experiences);
+      setSurveyRecords(stripped.records);
+      setExperiences(stripped.experiences);
+    }
+    if (isDemoSubjectProfile(subjectRef.current)) {
+      clearSubject();
+    }
+    if (previousMode === "demo") {
+      notify("Modo real ativado: participantes e experiências de demonstração removidos.");
+    }
+  }, [
+    clearLiveEvents,
+    clearSubject,
+    currentHubSessionId,
+    experiencesRef,
+    notify,
+    operatingMode,
+    setSubject,
+    subjectRef,
+    surveyRecordsRef,
+  ]);
 
   return {
     settings,

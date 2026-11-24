@@ -45,7 +45,7 @@ interface SubjectViewProps {
 }
 
 /**
- * Cadastro pseudônimo do sujeito: dados basais, fatores que afetam a HRV e
+ * Cadastro pseudônimo do participante: dados basais, fatores que afetam a HRV e
  * consentimento. O perfil é anexado à experiência (lifecycle e relatório) ao iniciar.
  */
 export function SubjectView({ notify, onChange, onClear, onNavigate, profile }: SubjectViewProps) {
@@ -64,14 +64,14 @@ export function SubjectView({ notify, onChange, onClear, onNavigate, profile }: 
   const clearProfile = () => {
     setIsConfirmingClear(false);
     onClear();
-    notify("Cadastro do sujeito apagado deste navegador.");
+    notify("Cadastro do participante apagado deste navegador.");
   };
 
   return (
     <>
       <section className="content-grid subject-grid">
         <Panel
-          title="Cadastro do sujeito"
+          title="Cadastro do participante"
           action={
             <StatusPill
               tone={isReady ? "ok" : "warn"}
@@ -83,7 +83,7 @@ export function SubjectView({ notify, onChange, onClear, onNavigate, profile }: 
             Use um identificador pseudônimo. Não registre dados pessoais identificáveis (LGPD).
           </p>
           <div className="form-block">
-            <label htmlFor="subject-id">Subject ID (pseudônimo) — obrigatório</label>
+            <label htmlFor="subject-id">ID do participante (pseudônimo) — obrigatório</label>
             <input
               aria-describedby={subjectIdMissing ? "subject-id-error" : undefined}
               aria-invalid={subjectIdMissing ? true : undefined}
@@ -91,13 +91,13 @@ export function SubjectView({ notify, onChange, onClear, onNavigate, profile }: 
               autoComplete="off"
               id="subject-id"
               maxLength={64}
-              placeholder="S-2026-014"
+              placeholder="P-2026-014"
               value={current.subjectId}
               onChange={(event) => update({ subjectId: event.target.value })}
             />
             {subjectIdMissing && (
               <p className="field-error" id="subject-id-error">
-                Informe um Subject ID para identificar esta coleta.
+                Informe um ID do participante para identificar esta coleta.
               </p>
             )}
 
@@ -208,7 +208,7 @@ export function SubjectView({ notify, onChange, onClear, onNavigate, profile }: 
                 type="checkbox"
                 onChange={(event) => update({ consentAt: event.target.checked ? new Date().toISOString() : undefined })}
               />
-              O sujeito consente com a coleta dos seus dados fisiológicos nesta sessão.
+              O participante consente com a coleta dos seus dados fisiológicos nesta sessão.
             </label>
             {current.consentAt && (
               <p className="muted-copy">Consentimento registrado em {formatDateTime(current.consentAt)}.</p>
@@ -244,7 +244,7 @@ export function SubjectView({ notify, onChange, onClear, onNavigate, profile }: 
 
       {isConfirmingClear && (
         <Dialog
-          eyebrow="Cadastro do sujeito"
+          eyebrow="Cadastro do participante"
           title="Limpar o cadastro?"
           onClose={() => setIsConfirmingClear(false)}
           actions={
@@ -259,7 +259,7 @@ export function SubjectView({ notify, onChange, onClear, onNavigate, profile }: 
           }
         >
           <p>
-            Os dados de <strong>{current.subjectId || "sujeito sem ID"}</strong> serão apagados deste navegador. Relatórios
+            Os dados de <strong>{current.subjectId || "participante sem ID"}</strong> serão apagados deste navegador. Relatórios
             já exportados não são afetados. Esta ação não pode ser desfeita.
           </p>
         </Dialog>

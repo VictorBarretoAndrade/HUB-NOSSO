@@ -303,7 +303,7 @@ export function SessionControlView({ activeTab, dashboard, onNavigate, onTabChan
               onExportTimeline={() => saveExport(buildTimelineCsvFile(run, timeline))}
               onOpenSurveys={() => {
                 const now = new Date().toISOString();
-                const subjectId = setup.subject?.subjectId.trim() || "Sujeito-Sessao";
+                const subjectId = setup.subject?.subjectId.trim() || "Participante-Sessao";
                 dashboard.upsertSurvey(
                   sessionSurvey
                     ? {

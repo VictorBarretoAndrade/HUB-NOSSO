@@ -36,7 +36,7 @@ export function Topbar({ linkState, onRefresh, pendingAckCount, sessionId, socke
   return (
     <header className="topbar">
       <div>
-        <p className="eyebrow">Biofeedback Hub</p>
+        <p className="eyebrow">DataTraceVR</p>
         <h1>{title}</h1>
       </div>
       <div className="topbar-actions">

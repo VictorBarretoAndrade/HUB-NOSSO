@@ -448,7 +448,7 @@ export function CsqVrAnalyticsPanel({ analytics }: { analytics: CsqVrStudyAnalyt
 
         <Panel
           title="Comparação Pré vs. Pós-Exposição (Tabela 11 do Toolkit)"
-          action={<span className="mono muted-copy">{analytics.preCount} sujeitos com baseline Pré-VR</span>}
+          action={<span className="mono muted-copy">{analytics.preCount} participantes com baseline Pré-VR</span>}
         >
           {pre && deltaMean ? (
             <div className="table-scroll">

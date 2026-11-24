@@ -33,11 +33,11 @@ export interface ReportExportContext {
 
 const MIME_TYPE: Record<ReportFormat, string> = { json: "application/json", csv: "text/csv" };
 
-/** Relatório completo: o JSON carrega timeline, comandos e o contexto (sujeito + captura). */
+/** Relatório completo: o JSON carrega timeline, comandos e o contexto (participante + captura). */
 export function buildReportFile(report: ExperienceReport, format: ReportFormat, context: ReportExportContext): ExportFile {
   const exportedAt = new Date().toISOString();
   return {
-    filename: `biofeedback-experience-report-${fileTimestamp(exportedAt)}.${format}`,
+    filename: `datatracevr-experience-report-${fileTimestamp(exportedAt)}.${format}`,
     content: format === "json" ? serializeExperienceReportJson(report, exportedAt, context) : serializeExperienceReportCsv(report),
     mimeType: MIME_TYPE[format],
   };
@@ -50,7 +50,7 @@ export function buildReportCsvFile(report: ExperienceReport, kind: ReportCsvKind
     "biometrics-timeline": () => serializeBiometricsTimelineCsv(report.analytics),
   };
   return {
-    filename: `biofeedback-experience-${kind}-${fileTimestamp()}.csv`,
+    filename: `datatracevr-experience-${kind}-${fileTimestamp()}.csv`,
     content: serializers[kind](),
     mimeType: MIME_TYPE.csv,
   };
@@ -59,7 +59,7 @@ export function buildReportCsvFile(report: ExperienceReport, kind: ReportCsvKind
 export function buildTimelineCsvFile(run: ExperienceRunState, timeline: AnalyticSessionTimelineItem[]): ExportFile {
   const exportedAt = new Date().toISOString();
   return {
-    filename: `biofeedback-experience-all-${fileTimestamp(exportedAt)}.csv`,
+    filename: `datatracevr-experience-all-${fileTimestamp(exportedAt)}.csv`,
     content: serializeExperienceRunCsv(run, timeline, exportedAt),
     mimeType: MIME_TYPE.csv,
   };

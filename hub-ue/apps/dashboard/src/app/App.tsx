@@ -38,7 +38,7 @@ export function App() {
 
   useEffect(() => {
     if (!participantParams) {
-      document.title = `${activeItem.title} · Biofeedback Hub`;
+      document.title = `${activeItem.title} · DataTraceVR`;
     }
   }, [activeItem.title, participantParams]);
 

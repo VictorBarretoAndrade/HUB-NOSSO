@@ -1,8 +1,8 @@
 """
-Biofeedback Hub: Executável Unificado
+DataTraceVR: Executável Unificado
 Inicia e gerencia toda a stack (Hub :8787, Dashboard :5173, Simulador HRV-ECG,
 Driver Polar H10 :8765, Ponte Polar e Exportador .npy/.mat) com um único clique,
-seguindo o design system "Clinical Console" do Biofeedback Hub.
+seguindo o design system "Clinical Console" do DataTraceVR.
 """
 
 from __future__ import annotations
@@ -270,7 +270,7 @@ class BiofeedbackLauncherApp:
         self.messagebox = messagebox
 
         self.root = tk.Tk()
-        self.root.title("Biofeedback Hub: Executável Unificado")
+        self.root.title("DataTraceVR: Executável Unificado")
         self.root.geometry("920x680")
         self.root.minsize(480, 520)
         self.root.configure(bg=TOKENS["bg"])
@@ -439,7 +439,7 @@ class BiofeedbackLauncherApp:
 
         title_lbl = tk.Label(
             title_stack,
-            text="Biofeedback Hub: Executável Unificado",
+            text="DataTraceVR: Executável Unificado",
             font=("Segoe UI", 14, "bold"),
             fg=TOKENS["text"],
             bg=TOKENS["surface"],
@@ -901,7 +901,7 @@ class BiofeedbackLauncherApp:
                 server = uvicorn.Server(uv_cfg)
                 self.hub_server = server
                 mode_label = "DEMO" if include_simulator else "REAL"
-                self.log(f"[hub] Biofeedback Hub ({mode_label}) ativo em http://127.0.0.1:{self.hub_port} (sessão: {cfg.session_id})")
+                self.log(f"[hub] DataTraceVR ({mode_label}) ativo em http://127.0.0.1:{self.hub_port} (sessão: {cfg.session_id})")
                 asyncio.run(server.serve())
 
             threading.Thread(target=_run_hub, daemon=True).start()
@@ -1008,7 +1008,7 @@ class BiofeedbackLauncherApp:
 
         tk.Label(
             frame,
-            text="Ao iniciar o Modo Real, a sessão demo é encerrada e uma nova sessão real é criada.",
+            text="Ao iniciar o Modo Real, a sessão demo é encerrada, os participantes e experiências mockados são removidos e uma nova sessão real é criada.",
             font=("Segoe UI", 9),
             fg=TOKENS["muted"],
             bg=TOKENS["surface"],
@@ -1306,7 +1306,7 @@ class BiofeedbackLauncherApp:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Biofeedback Hub: Executável Unificado")
+    parser = argparse.ArgumentParser(description="DataTraceVR: Executável Unificado")
     parser.add_argument(
         "--export",
         action="store_true",

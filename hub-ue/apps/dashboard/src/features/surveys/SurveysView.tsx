@@ -126,7 +126,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
     [currentReport],
   );
 
-  const activeSubjectId = setup.subject?.subjectId.trim() || "Sujeito-Sessao";
+  const activeSubjectId = setup.subject?.subjectId.trim() || "Participante-Sessao";
 
   // Garante um registro selecionado válido ou cria um rascunho vinculado à sessão atual
   const selectedRecord: SubjectSurveyRecord = useMemo(() => {
@@ -160,21 +160,28 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
     return distinctSystems[0] ?? "";
   }, [distinctSystems, selectedExperience]);
 
+  const activeSystemFilter = useMemo(() => {
+    if (selectedSystemFilter === "__ALL__" || distinctSystems.includes(selectedSystemFilter)) {
+      return selectedSystemFilter;
+    }
+    return "__ALL__";
+  }, [distinctSystems, selectedSystemFilter]);
+
   const filteredRecords = useMemo(
     () =>
-      selectedSystemFilter === "__ALL__"
+      activeSystemFilter === "__ALL__"
         ? surveyRecords
-        : surveyRecords.filter((r) => r.systemName === selectedSystemFilter),
-    [selectedSystemFilter, surveyRecords],
+        : surveyRecords.filter((r) => r.systemName === activeSystemFilter),
+    [activeSystemFilter, surveyRecords],
   );
 
   const susAnalytics = useMemo(
     () =>
       computeSusStudyAnalytics(
         filteredRecords,
-        selectedSystemFilter === "__ALL__" ? "Todas as Experiências / Sessões" : selectedSystemFilter,
+        activeSystemFilter === "__ALL__" ? "Todas as Experiências / Sessões" : activeSystemFilter,
       ),
-    [filteredRecords, selectedSystemFilter],
+    [activeSystemFilter, filteredRecords],
   );
   const ipqAnalytics = useMemo(() => computeIpqStudyAnalytics(filteredRecords), [filteredRecords]);
   const csqAnalytics = useMemo(() => computeCsqVrStudyAnalytics(filteredRecords), [filteredRecords]);
@@ -220,7 +227,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
     if (openApplyTab) {
       setMainMode("apply");
     }
-    notify(`Sessão e dados biométricos vinculados ao sujeito ${record.subjectId}.`);
+    notify(`Sessão e dados biométricos vinculados ao participante ${record.subjectId}.`);
   };
 
   const handleOpenParticipantTab = (instrument: SurveyInstrumentId) => {
@@ -271,7 +278,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
     upsertSurvey(record);
     setSelectedRecordId(record.id);
     setNewSubjectId("");
-    notify(`Sujeito ${cleanId} criado na experiência "${targetExperience}".`);
+    notify(`Participante ${cleanId} criado na experiência "${targetExperience}".`);
   };
 
   const handleAddExperience = () => {
@@ -290,7 +297,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
     if (!expName) return;
     if (
       !window.confirm(
-        `Remover a experiência "${expName}" e os sujeitos vinculados exclusivamente a ela?`,
+        `Remover a experiência "${expName}" e os participantes vinculados exclusivamente a ela?`,
       )
     ) {
       return;
@@ -337,11 +344,11 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
       return;
     }
     downloadTextFile(
-      `biofeedback-unified-subject-sensors-surveys-${ts}.csv`,
+      `datatracevr-unified-participant-sensors-surveys-${ts}.csv`,
       serializeUnifiedSurveyCsv(filteredRecords),
       "text/csv",
     );
-    notify("CSV Unificado (Sujeito + Sensores + Formulários) exportado.");
+    notify("CSV Unificado (Participante + Sensores + Formulários) exportado.");
   };
 
   const handleImportCsvText = (rawText: string) => {
@@ -382,7 +389,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
             onClick={() => setMainMode("apply")}
           >
             <ClipboardCheck aria-hidden size={16} />
-            <span>Aplicar Novo Formulário no Sujeito</span>
+            <span>Aplicar Novo Formulário no Participante</span>
           </button>
           <button
             aria-selected={mainMode === "analyze"}
@@ -410,13 +417,13 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
       </div>
 
       {/* ===================================================================
-          MODO 1: APLICAR NOVO FORMULÁRIO NO SUJEITO
+          MODO 1: APLICAR NOVO FORMULÁRIO NO PARTICIPANTE
           =================================================================== */}
       {mainMode === "apply" && (
         <div className="report-wide survey-analytics-stack">
-          {/* Seção 1: Sujeito e Experiência em Foco + Botão Gerenciar */}
+          {/* Seção 1: Participante e Experiência em Foco + Botão Gerenciar */}
           <Panel
-            title="1. Sujeito e Experiência em Foco"
+            title="1. Participante e Experiência em Foco"
             action={
               <button className="mini-button" type="button" onClick={() => linkCurrentSession(true)}>
                 <FolderSync aria-hidden size={14} /> Sincronizar Sessão Atual ({activeSubjectId})
@@ -427,7 +434,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
               <div className="survey-session-banner-info">
                 <span className="eyebrow">Vínculo com a Sessão & Sensores</span>
                 <p>
-                  <strong>Sujeito ativo:</strong> <span className="mono">{activeSubjectId}</span> ·{" "}
+                  <strong>Participante ativo:</strong> <span className="mono">{activeSubjectId}</span> ·{" "}
                   <strong>Run:</strong> <span className="mono">{run.runId ?? "não iniciada"}</span> ({run.status}) ·{" "}
                   <strong>Biometria capturada:</strong>{" "}
                   <span className="mono">
@@ -444,7 +451,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
               </div>
             </div>
 
-            {/* Seleção principal: Dropdown de Experiências + Dropdown de Sujeitos + Botão Gerenciar */}
+            {/* Seleção principal: Dropdown de Experiências + Dropdown de Participantes + Botão Gerenciar */}
             <div className="survey-toolbar-bar" style={{ marginBottom: showManager ? 12 : 0 }}>
               <label>
                 <span>Experiência</span>
@@ -465,7 +472,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
               </label>
 
               <label>
-                <span>Sujeito em Foco</span>
+                <span>Participante em Foco</span>
                 <select
                   value={selectedRecord.id}
                   onChange={(e) => setSelectedRecordId(e.target.value)}
@@ -490,11 +497,11 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
                 onClick={() => setShowManager((prev) => !prev)}
               >
                 <Plus aria-hidden size={14} />{" "}
-                {showManager ? "Ocultar Gerenciador" : "Gerenciar Sujeitos e Experiências"}
+                {showManager ? "Ocultar Gerenciador" : "Gerenciar Participantes e Experiências"}
               </button>
             </div>
 
-            {/* Área expansível de Gerenciamento (Adicionar / Remover Sujeitos e Experiências) */}
+            {/* Área expansível de Gerenciamento (Adicionar / Remover Participantes e Experiências) */}
             {showManager && (
               <div className="survey-analytics-stack" style={{ gap: 10 }}>
                 <div className="survey-toolbar-bar" style={{ marginBottom: 0 }}>
@@ -522,15 +529,15 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
 
                 <div className="survey-toolbar-bar" style={{ marginBottom: 0 }}>
                   <label>
-                    <span>Novo Sujeito ID</span>
+                    <span>ID do Novo Participante</span>
                     <input
-                      placeholder="Ex.: S-2026-015"
+                      placeholder="Ex.: P-2026-015"
                       value={newSubjectId}
                       onChange={(e) => setNewSubjectId(e.target.value)}
                     />
                   </label>
                   <label>
-                    <span>Experiência do Novo Sujeito</span>
+                    <span>Experiência do Novo Participante</span>
                     <select
                       value={activeExperienceValue}
                       onChange={(e) => setSelectedExperience(e.target.value)}
@@ -547,21 +554,21 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
                     </select>
                   </label>
                   <button className="mini-button strong" type="button" onClick={handleCreateSubjectRecord}>
-                    <Plus aria-hidden size={14} /> Adicionar Sujeito
+                    <Plus aria-hidden size={14} /> Adicionar Participante
                   </button>
                   <button
                     className="mini-button danger"
                     disabled={surveyRecords.length === 0}
-                    title="Remove o sujeito atualmente selecionado no dropdown acima"
+                    title="Remove o participante atualmente selecionado no dropdown acima"
                     type="button"
                     onClick={() => {
-                      if (window.confirm(`Remover o sujeito "${selectedRecord.subjectId}"?`)) {
+                      if (window.confirm(`Remover o participante "${selectedRecord.subjectId}"?`)) {
                         deleteSurvey(selectedRecord.id);
-                        notify(`Sujeito ${selectedRecord.subjectId} removido.`);
+                        notify(`Participante ${selectedRecord.subjectId} removido.`);
                       }
                     }}
                   >
-                    <Trash2 aria-hidden size={14} /> Remover Sujeito ({selectedRecord.subjectId})
+                    <Trash2 aria-hidden size={14} /> Remover Participante ({selectedRecord.subjectId})
                   </button>
                 </div>
               </div>
@@ -570,7 +577,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
 
           {/* Seção 2: Seleção do Tipo de Formulário e Abertura em Nova Aba */}
           <Panel
-            title={`2. Selecionar Tipo de Formulário — Sujeito ${selectedRecord.subjectId}`}
+            title={`2. Selecionar Tipo de Formulário — Participante ${selectedRecord.subjectId}`}
             action={
               <button
                 className="mini-button"
@@ -610,7 +617,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
                     type="checkbox"
                     onChange={(e) => setLaunchCsqPre(e.target.checked)}
                   />
-                  Incluir Baseline Pré-VR (Antes da exposição) no formulário do sujeito
+                  Incluir Baseline Pré-VR (Antes da exposição) no formulário do participante
                 </label>
               </div>
             )}
@@ -665,7 +672,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
                 type="button"
                 onClick={() => handleOpenParticipantTab(activeInstrument)}
               >
-                <ExternalLink aria-hidden size={16} /> Abrir {selectedInstrumentMeta.shortLabel} em Nova Aba (Visão do Sujeito)
+                <ExternalLink aria-hidden size={16} /> Abrir {selectedInstrumentMeta.shortLabel} em Nova Aba (Visão do Participante)
               </button>
             </div>
           </Panel>
@@ -688,10 +695,10 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
           =================================================================== */}
       {mainMode === "analyze" && (
         <>
-          {/* Seção de Gerenciamento de Amostra / Sujeito em Foco / Filtro */}
+          {/* Seção de Gerenciamento de Amostra / Participante em Foco / Filtro */}
           <Panel
             className="report-wide"
-            title="Sujeito em Foco e Banco de Dados da Pesquisa"
+            title="Participante em Foco e Banco de Dados da Pesquisa"
             action={
               <div className="survey-session-banner-buttons">
                 <button
@@ -699,7 +706,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
                   type="button"
                   onClick={() => {
                     loadSampleSurveys();
-                    notify("Estudo demonstrativo SELECT-IVE (14 sujeitos com sensores + 5 formulários) carregado.");
+                    notify("Estudo demonstrativo SELECT-IVE (14 participantes com sensores + 5 formulários) carregado.");
                   }}
                 >
                   <Sparkles aria-hidden size={14} /> Carregar Estudo Exemplo (N=14)
@@ -707,7 +714,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
                 {surveyRecords.length > 0 && (
                   <button
                     className="mini-button danger"
-                    title="Limpa os registros mockados/demonstrativos para operar com sujeitos e sessões reais"
+                    title="Limpa os registros mockados/demonstrativos para operar com participantes e sessões reais"
                     type="button"
                     onClick={() => {
                       if (window.confirm("Deseja limpar todos os registros de pesquisa salvos e iniciar um banco limpo para testes reais?")) {
@@ -758,7 +765,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
 
             <div className="survey-toolbar-bar" style={{ marginBottom: 0 }}>
               <label>
-                <span>Sujeito / Sessão em Foco</span>
+                <span>Participante / Sessão em Foco</span>
                 <select
                   value={selectedRecord.id}
                   onChange={(e) => setSelectedRecordId(e.target.value)}
@@ -779,10 +786,10 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
               <label>
                 <span>Filtrar por Experiência</span>
                 <select
-                  value={selectedSystemFilter}
+                  value={activeSystemFilter}
                   onChange={(e) => setSelectedSystemFilter(e.target.value)}
                 >
-                  <option value="__ALL__">Todas as Experiências ({surveyRecords.length} sujeitos)</option>
+                  <option value="__ALL__">Todas as Experiências ({surveyRecords.length} participantes)</option>
                   {distinctSystems.map((sys) => (
                     <option key={sys} value={sys}>
                       {sys}
@@ -793,7 +800,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
             </div>
           </Panel>
 
-          {/* SUB-ABA 1: DOSSIÊ UNIFICADO (SUJEITO + SENSORES + PESQUISA) */}
+          {/* SUB-ABA 1: DOSSIÊ UNIFICADO (PARTICIPANTE + SENSORES + PESQUISA) */}
           {analyzeTab === "unified" && (
         <div className="report-wide survey-analytics-stack">
           <div className="survey-charts-grid-2">
@@ -812,7 +819,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
             >
               <div className="survey-dossier-grid">
                 <div className="survey-dossier-stat">
-                  <span>Subject ID</span>
+                  <span>ID do Participante</span>
                   <strong className="mono">{selectedRecord.subjectId}</strong>
                 </div>
                 <div className="survey-dossier-stat">
@@ -918,7 +925,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
           </div>
 
           <Panel
-            title="Tabela Consolidada: Sujeitos, Sensores da Sessão e Formulários de Pesquisa"
+            title="Tabela Consolidada: Participantes, Sensores da Sessão e Formulários de Pesquisa"
             action={
               <div className="survey-header-actions">
                 <button
@@ -942,7 +949,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
           >
             {surveyRecords.length === 0 ? (
               <p className="empty-state">
-                Nenhum sujeito registrado ainda. Clique em <strong>Aplicar Formulário na Sessão Atual</strong> ou{" "}
+                Nenhum participante registrado ainda. Clique em <strong>Aplicar Formulário na Sessão Atual</strong> ou{" "}
                 <strong>Carregar Estudo Exemplo (N=14)</strong> acima para começar.
               </p>
             ) : (
@@ -950,7 +957,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
                 <table className="data-table report-table">
                   <thead>
                     <tr>
-                      <th>Sujeito</th>
+                      <th>Participante</th>
                       <th>Run / Sessão</th>
                       <th>Experiência</th>
                       <th>BPM Mín/Méd/Máx</th>
@@ -1089,10 +1096,10 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
               <label>
                 <span>Filtrar por Experiência</span>
                 <select
-                  value={selectedSystemFilter}
+                  value={activeSystemFilter}
                   onChange={(e) => setSelectedSystemFilter(e.target.value)}
                 >
-                  <option value="__ALL__">Todas as Experiências ({surveyRecords.length} sujeitos)</option>
+                  <option value="__ALL__">Todas as Experiências ({surveyRecords.length} participantes)</option>
                   {distinctSystems.map((sys) => (
                     <option key={sys} value={sys}>
                       {sys}
@@ -1199,7 +1206,7 @@ export function SurveysView({ dashboard }: SurveysViewProps) {
                 type="button"
                 onClick={() => handleExportCsv("unified")}
               >
-                <Download aria-hidden size={16} /> CSV Unificado (Sujeito + Sensores + 5 Formulários)
+                <Download aria-hidden size={16} /> CSV Unificado (Participante + Sensores + 5 Formulários)
               </button>
               <button
                 className="command-button"

@@ -23,7 +23,7 @@ export interface SessionSetup {
   resetCapture: () => void;
 }
 
-/** Preparação da sessão: cadastro do sujeito e perfil de captura, persistidos localmente. */
+/** Preparação da sessão: cadastro do participante e perfil de captura, persistidos localmente. */
 export function useSessionSetup(): SessionSetup {
   const [subject, setSubject] = useState<SubjectProfile | null>(() => loadSubjectProfile(browserStorage));
   const [capture, setCapture] = useState<CaptureProfile>(
@@ -50,7 +50,7 @@ export function useSessionSetup(): SessionSetup {
   const subjectSnapshot = useMemo(() => (subject ? subjectSnapshotForRun(subject) : undefined), [subject]);
 
   const pendingIssues = useMemo(() => {
-    const issues = subject ? validateSubjectForStart(subject) : ["Nenhum sujeito cadastrado para esta sessão."];
+    const issues = subject ? validateSubjectForStart(subject) : ["Nenhum participante cadastrado para esta sessão."];
     if (!isCaptureValid(capture)) {
       issues.push("O modo de gravação exige ao menos um sinal selecionado.");
     }

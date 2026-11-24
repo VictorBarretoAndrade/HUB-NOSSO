@@ -9,7 +9,7 @@ interface SessionAlertsProps {
   /** Detalhe de um comando aceito cujo efeito ainda não apareceu no stream. */
   pendingObservationDetail: string | null;
   pendingLifecycle: PendingLifecycleTransition | null;
-  /** Pendências de preparação (sujeito/gravação), mostradas antes de iniciar. */
+  /** Pendências de preparação (participante/gravação), mostradas antes de iniciar. */
   setupIssues: string[];
   socketState: SocketState;
   onDismissNotice: () => void;
@@ -45,7 +45,7 @@ export function SessionAlerts({
           </ul>
           <div className="strip-actions">
             <button className="mini-button" type="button" onClick={() => onNavigate("subject")}>
-              Abrir Sujeito
+              Abrir Participante
             </button>
             <button className="mini-button" type="button" onClick={() => onNavigate("recording")}>
               Abrir Gravação

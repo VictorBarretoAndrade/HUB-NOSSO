@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  createDemoSubjectProfile,
   createEmptySubjectProfile,
+  isDemoSubjectProfile,
   loadSubjectProfile,
   saveSubjectProfile,
   subjectSnapshotForRun,
@@ -57,5 +59,13 @@ describe("subjectProfile", () => {
     expect(validateSubjectForStart(withAge(34))).toEqual([]);
     expect(validateSubjectForStart(withAge(0))).toHaveLength(1);
     expect(validateSubjectForStart(withAge(340))).toHaveLength(1);
+  });
+
+  it("creates a valid demo participant profile and identifies demo vs real profiles", () => {
+    const demo = createDemoSubjectProfile("2026-11-23T21:00:00.000Z");
+    expect(validateSubjectForStart(demo)).toEqual([]);
+    expect(isDemoSubjectProfile(demo)).toBe(true);
+    expect(isDemoSubjectProfile(confirmedProfile())).toBe(false);
+    expect(isDemoSubjectProfile(null)).toBe(false);
   });
 });

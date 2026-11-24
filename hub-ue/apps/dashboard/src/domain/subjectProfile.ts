@@ -12,6 +12,7 @@ export type { KeyValueStorage };
 
 export const SUBJECT_STORAGE_KEY = "biofeedback-dashboard.subject.v1";
 export const SUBJECT_SCHEMA_VERSION = 2 as const;
+export const DEMO_SUBJECT_ID = "DEMO-P01";
 const MIN_PLAUSIBLE_AGE_YEARS = 1;
 const MAX_PLAUSIBLE_AGE_YEARS = 120;
 
@@ -67,11 +68,41 @@ export function createEmptySubjectProfile(now = new Date().toISOString()): Subje
   };
 }
 
+/** Cria um perfil de participante mockado pronto para demonstração e testes no modo demo. */
+export function createDemoSubjectProfile(now = new Date().toISOString()): SubjectProfile {
+  return {
+    schemaVersion: SUBJECT_SCHEMA_VERSION,
+    subjectId: DEMO_SUBJECT_ID,
+    demographics: {
+      ageYears: 28,
+      biologicalSex: "female",
+      heightCm: 168,
+      weightKg: 64,
+      measurementPosition: "standing",
+    },
+    confounders: {
+      caffeineHoursAgo: 4,
+      sleepHours: 7.5,
+      stressLevel: "low",
+      alcoholLast24h: false,
+      exerciseRecent: false,
+      nicotineRecent: false,
+      conditions: ["none"],
+    },
+    consentAt: now,
+    updatedAt: now,
+  };
+}
+
+export function isDemoSubjectProfile(profile: SubjectProfile | null | undefined): boolean {
+  return Boolean(profile && profile.subjectId.trim().toUpperCase().startsWith("DEMO-"));
+}
+
 /** Retorna os problemas que impedem iniciar a experiência (vazio = ok). */
 export function validateSubjectForStart(profile: SubjectProfile): string[] {
   const issues: string[] = [];
   if (!profile.subjectId.trim()) {
-    issues.push("Informe um Subject ID (pseudônimo).");
+    issues.push("Informe um ID do participante (pseudônimo).");
   }
   if (!profile.consentAt) {
     issues.push("Consentimento é obrigatório para iniciar a coleta.");

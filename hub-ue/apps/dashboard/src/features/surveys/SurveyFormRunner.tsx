@@ -186,7 +186,7 @@ export function SurveyFormRunner({
 
   return (
     <div className="survey-analytics-stack">
-      {/* Seletor rápido de instrumento com status de preenchimento do sujeito atual */}
+      {/* Seletor rápido de instrumento com status de preenchimento do participante atual */}
       <div className="survey-toolbar-bar" style={{ marginBottom: 0, justifyContent: "space-between", alignItems: "center" }}>
         <span className="eyebrow" style={{ margin: 0 }}>Modo de Aplicação</span>
         <button
@@ -196,7 +196,7 @@ export function SurveyFormRunner({
           title="Alterna a exibição dos cálculos e pontuações em tempo real"
         >
           {showLiveScore ? <EyeOff aria-hidden size={14} /> : <Eye aria-hidden size={14} />}
-          {showLiveScore ? "Ocultar escore em tempo real (Modo Sujeito)" : "Exibir escore em tempo real (Modo Debug)"}
+          {showLiveScore ? "Ocultar escore em tempo real (Modo Participante)" : "Exibir escore em tempo real (Modo Debug)"}
         </button>
       </div>
 
@@ -223,7 +223,7 @@ export function SurveyFormRunner({
 
       {activeInstrument === "sus" && (
         <Panel
-          title={`System Usability Scale (SUS) — Sujeito ${record.subjectId}`}
+          title={`System Usability Scale (SUS) — Participante ${record.subjectId}`}
           action={
             showLiveScore ? (
               <StatusPill
@@ -276,7 +276,7 @@ export function SurveyFormRunner({
           </div>
           <div className="form-actions">
             <button className="command-button strong" type="button" onClick={saveInstrument}>
-              <CheckCircle2 aria-hidden size={16} /> Salvar SUS no Sujeito {record.subjectId}
+              <CheckCircle2 aria-hidden size={16} /> Salvar SUS no Participante {record.subjectId}
             </button>
           </div>
         </Panel>
@@ -284,7 +284,7 @@ export function SurveyFormRunner({
 
       {activeInstrument === "ipq" && (
         <Panel
-          title={`Igroup Presence Questionnaire (IPQ) — Sujeito ${record.subjectId}`}
+          title={`Igroup Presence Questionnaire (IPQ) — Participante ${record.subjectId}`}
           action={
             showLiveScore ? (
               <StatusPill
@@ -331,7 +331,7 @@ export function SurveyFormRunner({
           </div>
           <div className="form-actions">
             <button className="command-button strong" type="button" onClick={saveInstrument}>
-              <CheckCircle2 aria-hidden size={16} /> Salvar IPQ no Sujeito {record.subjectId}
+              <CheckCircle2 aria-hidden size={16} /> Salvar IPQ no Participante {record.subjectId}
             </button>
           </div>
         </Panel>
@@ -339,7 +339,7 @@ export function SurveyFormRunner({
 
       {activeInstrument === "csqVr" && (
         <Panel
-          title={`Cybersickness in Virtual Reality (CSQ-VR) — Sujeito ${record.subjectId}`}
+          title={`Cybersickness in Virtual Reality (CSQ-VR) — Participante ${record.subjectId}`}
           action={
             showLiveScore ? (
               <StatusPill
@@ -410,7 +410,7 @@ export function SurveyFormRunner({
           </div>
           <div className="form-actions">
             <button className="command-button strong" type="button" onClick={saveInstrument}>
-              <CheckCircle2 aria-hidden size={16} /> Salvar CSQ-VR no Sujeito {record.subjectId}
+              <CheckCircle2 aria-hidden size={16} /> Salvar CSQ-VR no Participante {record.subjectId}
             </button>
           </div>
         </Panel>
@@ -418,7 +418,7 @@ export function SurveyFormRunner({
 
       {activeInstrument === "utaut2" && (
         <Panel
-          title={`UTAUT2 (Aceitação e Intenção de Uso) — Sujeito ${record.subjectId}`}
+          title={`UTAUT2 (Aceitação e Intenção de Uso) — Participante ${record.subjectId}`}
           action={
             showLiveScore ? (
               <StatusPill
@@ -519,7 +519,7 @@ export function SurveyFormRunner({
 
           <div className="form-actions">
             <button className="command-button strong" type="button" onClick={saveInstrument}>
-              <CheckCircle2 aria-hidden size={16} /> Salvar UTAUT2 no Sujeito {record.subjectId}
+              <CheckCircle2 aria-hidden size={16} /> Salvar UTAUT2 no Participante {record.subjectId}
             </button>
           </div>
         </Panel>
@@ -527,7 +527,7 @@ export function SurveyFormRunner({
 
       {activeInstrument === "sentiment" && (
         <Panel
-          title={`Análise de Sentimento Pós-Exposição — Sujeito ${record.subjectId}`}
+          title={`Análise de Sentimento Pós-Exposição — Participante ${record.subjectId}`}
           action={
             showLiveScore ? (
               <StatusPill
@@ -644,7 +644,7 @@ export function SurveyFormRunner({
 
           <div className="form-actions">
             <button className="command-button strong" type="button" onClick={saveInstrument}>
-              <CheckCircle2 aria-hidden size={16} /> Salvar Análise de Sentimento no Sujeito {record.subjectId}
+              <CheckCircle2 aria-hidden size={16} /> Salvar Análise de Sentimento no Participante {record.subjectId}
             </button>
           </div>
         </Panel>

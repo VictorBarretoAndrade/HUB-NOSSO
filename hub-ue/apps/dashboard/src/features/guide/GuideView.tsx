@@ -19,14 +19,14 @@ const STEPS: GuideStep[] = [
   {
     view: "subject",
     icon: UserPlus,
-    title: "Cadastrar o sujeito",
+    title: "Cadastrar o participante",
     lead: "Registre quem será monitorado e o consentimento antes de começar.",
     points: [
-      "Use um Subject ID pseudônimo (ex.: S-2026-014), nunca dados pessoais reais.",
+      "Use um ID do participante pseudônimo (ex.: P-2026-014), nunca dados pessoais reais.",
       "Preencha a demografia e os fatores que afetam a HRV (cafeína, sono, estresse).",
       "Marque o consentimento. O selo muda para “Pronto para iniciar”.",
     ],
-    actionLabel: "Abrir Sujeito",
+    actionLabel: "Abrir Participante",
   },
   {
     view: "recording",
@@ -92,15 +92,15 @@ export function GuideView({ onNavigate }: { onNavigate: (view: View) => void }) 
       <section className="panel overview-wide">
         <div className="panel-body guide-hero">
           <span className="eyebrow">Guia de uso</span>
-          <h2>Como usar o Biofeedback Hub</h2>
+          <h2>Como usar o DataTraceVR</h2>
           <p className="guide-lead">
             A plataforma coleta sinais fisiológicos (ECG/HRV) de um sensor, distribui pelo hub central e mostra tudo
-            aqui no dashboard. O caminho completo tem 5 passos: cadastrar o sujeito, configurar a gravação, iniciar a
+            aqui no dashboard. O caminho completo tem 5 passos: cadastrar o participante, configurar a gravação, iniciar a
             experiência, acompanhar ao vivo e exportar.
           </p>
           <div className="guide-actions">
             <button className="command-button strong" type="button" onClick={() => onNavigate("subject")}>
-              Começar pelo Sujeito <ArrowRight aria-hidden size={16} />
+              Começar pelo Participante <ArrowRight aria-hidden size={16} />
             </button>
             <button className="command-button" type="button" onClick={() => onNavigate("overview")}>
               Ir para a Visão geral <ArrowRight aria-hidden size={16} />

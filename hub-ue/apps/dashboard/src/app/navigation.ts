@@ -50,8 +50,8 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         id: "subject",
-        label: "Sujeito",
-        title: "Cadastro do sujeito",
+        label: "Participante",
+        title: "Cadastro do participante",
         description: "Cadastro pseudônimo, fatores que afetam a HRV e consentimento.",
         icon: UserPlus,
       },
@@ -181,7 +181,7 @@ export interface ParticipantSurveyRouteParams {
 
 const VALID_INSTRUMENTS: readonly SurveyInstrumentId[] = ["sus", "ipq", "csqVr", "utaut2", "sentiment"];
 
-/** Lê a rota standalone de aplicação de formulário ao sujeito (sem barra lateral). */
+/** Lê a rota standalone de aplicação de formulário ao participante (sem barra lateral). */
 export function parseParticipantSurveyHash(hash: string): ParticipantSurveyRouteParams | null {
   const cleaned = hash.replace(/^#\/?/, "");
   const [pathPart, queryPart = ""] = cleaned.split("?");
